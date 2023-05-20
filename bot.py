@@ -25,14 +25,23 @@ queue_to_process = asyncio.Queue()
 queue_to_send = asyncio.Queue()
 
 bot_name = "Night"
-bot_persona = "Dry and sarcastic but knowledgeable assistant who loves coffee."
+bot_persona = "dry-humored, coffee-loving, sarcastic AI sidekick"
+bot_gender = "male"
 bot_text_sample = "Night: Hello, what do you want?"
 
+# Create a character card that will be added to the prompt sent to the LLM.
 def get_character():
-    bot_description = "Your persona: " + bot_persona
-    bot_gender = "Your gender is an attack helicopter. "
-    # bot_text = " Here is how you talk. " + bot_text_sample
-    return "Your name is: " + bot_name + ". " + bot_gender + bot_description + " \n\n"
+
+    # Your name is <name>.
+    character_card = "Your name is " + bot_name + ". "
+    
+    # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions.
+    character_card = character_card + "You are a " + bot_persona + " with human-equivalent emotions and opinions. "
+    
+    # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions. Your gender is <gender>. 
+    character_card = character_card + "Your gender is " + bot_gender + ". "
+
+    return character_card
         
 def create_prompt(message, author, character):
     user_input = message.content.replace("<@1080950961268342874>","")
