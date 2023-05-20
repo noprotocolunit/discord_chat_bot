@@ -13,8 +13,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 api_url = "http://localhost:5001/api/v1/"
 
-client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
+client = commands.Bot(command_prefix='$', intents=intents)
 
 
 # Create our queues up here somewhere
@@ -127,7 +126,8 @@ async def on_ready():
     asyncio.create_task(process_queue())
     asyncio.create_task(send_queue()) 
     
-    await tree.sync()
+    client.tree.add_command(personality)
+    synced = await client.tree.sync()
  
 @client.event
 async def on_message(message):
@@ -144,18 +144,23 @@ async def on_message(message):
         queue_to_process.put_nowait(queue_item)
 
 # Slash command to update the bot's personality     
-@tree.command(name="personality", description="Adjust the bot's personality with this command.")
-@app_commands.describe(persona="Describe the bot's new personality.")
-async def personality(interaction, persona: str):
+personality = app_commands.Group(name="personality", description="View or change the bot's personality.")
 
+@personality.command(name="view", description="View the bot's personality profile.")
+async def view_personality(interaction):
+    # Display current personality.
+    await interaction.response.send_message("Bot's personality is " + bot_persona)
+    
+@personality.command(name="edit", description="Change the bot's personality.")
+@app_commands.describe(persona="Describe the bot's new personality.")
+async def edit_personality(interaction, persona: str):
     global bot_persona
-        
+            
     # Update the global variable
     old_personality = bot_persona
     bot_persona = persona
-    
+        
     # Display new personality, so we know where we're at
     await interaction.response.send_message("Bot's personality has been updated from " + old_personality + " to " + bot_persona)
-    
     
 client.run('API_KEY')
