@@ -14,7 +14,7 @@ intents.message_content = True
 api_url = "http://localhost:5001/api/v1/"
 
 client = discord.Client(intents=intents)
-tree= app_commands.CommandTree(client)
+tree = app_commands.CommandTree(client)
 
 
 # Create our queues up here somewhere
@@ -25,14 +25,24 @@ queue_to_process = asyncio.Queue()
 queue_to_send = asyncio.Queue()
 
 bot_name = "Night"
-bot_persona = "Dry and sarcastic but knowledgeable assistant who loves coffee."
+bot_persona = "dry-humored, coffee-loving, sarcastic AI sidekick"
+bot_gender = "male"
 bot_text_sample = "Night: Hello, what do you want?"
 
+
+# Create a character card that will be added to the prompt sent to the LLM.
 def get_character():
-    bot_description = "Your persona: " + bot_persona
-    bot_gender = "Your gender is an attack helicopter. "
-    # bot_text = " Here is how you talk. " + bot_text_sample
-    return "Your name is: " + bot_name + ". " + bot_gender + bot_description + " \n\n"
+
+    # Your name is <name>.
+    character_card = "Your name is " + bot_name + ". "
+    
+    # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions.
+    character_card = character_card + "You are a " + bot_persona + " with human-equivalent emotions and opinions. "
+    
+    # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions. Your gender is <gender>. 
+    character_card = character_card + "Your gender is " + bot_gender + ". "
+
+    return character_card
         
 def create_prompt(message, author, character):
     user_input = message.content.replace("<@1080950961268342874>","")
@@ -133,20 +143,43 @@ async def on_message(message):
         queue_to_process.put_nowait(queue_item)
 
 
-# Slash command to update the bot's personality
-# Would be cool to have a command to show the existing personality without making any changes        
-@tree.command(name="personality", description="Adjust the bot's personality with this command.")
-@app_commands.describe(persona="Describe the bot's new personality.")
-async def personality(interaction, persona: str):
-
+# Slash command to view or update the bot's personality 
+@commands.hybrid_group(name="personality", description="View or adjust the bot's personality with this command.")
+async def personality(interaction):
+    pass
+ 
+# Personality subcommand to display current situation
+# /personality view 
+@personality.command(name="view", description="View the bot's current personality.")
+async def view(interaction):
+    await interaction.response.send_message("Bot's current personality: " + bot_persona)
+ 
+# Personality subcommand to change the bot's personality
+# /personality edit 
+@personality.command(name="edit", description="Edit the bot's current personality.", parent="personality")
+@app_commands.describe(persona="Bot's new personality.")
+async def edit(interaction, persona: str):
     # Display current personality (in case the user needs to revert or something)
+    global bot_persona
     await interaction.response.send_message("Bot's current personality: " + bot_persona)
     
     # Update the global variable
-    global bot_persona
     bot_persona = persona
     
     # Display new personality, so we know where we're at
     await interaction.response.send_message("Bot's personality has been updated to: " + bot_persona)
+
+# Personality subcommand to reset the bot's personality
+# /personality reset
+@personality.command(name="reset", description="Reset the bot's current personality to default.", parent="personality")
+async def reset(interaction):
+   
+    # Update the global variable
+    global bot_persona
+    bot_persona = "dry-humored, coffee-loving, sarcastic AI sidekick"
+    
+    # Display new personality, so we know where we're at
+    await interaction.response.send_message("Bot's personality has been updated to: " + bot_persona)
+    
    
 client.run('API_KEY')
