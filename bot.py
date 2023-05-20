@@ -14,7 +14,7 @@ intents.message_content = True
 api_url = "http://localhost:5001/api/v1/"
 
 client = discord.Client(intents=intents)
-tree= app_commands.CommandTree(client)
+tree = app_commands.CommandTree(client)
 
 
 # Create our queues up here somewhere
@@ -28,6 +28,7 @@ bot_name = "Night"
 bot_persona = "dry-humored, coffee-loving, sarcastic AI sidekick"
 bot_gender = "male"
 bot_text_sample = "Night: Hello, what do you want?"
+
 
 # Create a character card that will be added to the prompt sent to the LLM.
 def get_character_card():
@@ -155,5 +156,6 @@ async def personality(interaction, persona: str):
     
     # Display new personality, so we know where we're at
     await interaction.response.send_message("Bot's personality has been updated from " + old_personality + " to " + bot_persona)
-
+    
+    
 client.run('API_KEY')
