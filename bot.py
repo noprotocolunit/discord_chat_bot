@@ -30,7 +30,7 @@ bot_gender = "male"
 bot_text_sample = "Night: Hello, what do you want?"
 
 # Create a character card that will be added to the prompt sent to the LLM.
-def get_character():
+def get_character_card():
 
     # Your name is <name>.
     character_card = "Your name is " + bot_name + ". "
@@ -132,7 +132,7 @@ async def on_message(message):
     
     # Check to see the bot should reply
     if should_bot_reply(message) == True:
-        character = get_character()
+        character = get_character_card()
         
         # Create the JSON prompt to use
         data = create_prompt(message, str(message.author), character)
