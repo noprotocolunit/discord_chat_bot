@@ -93,6 +93,7 @@ async def process_queue():
     while True:
         content = await queue_to_process.get()
         data = content[0]
+        print("Making API call.")
         async with ClientSession() as session:
             async with session.post(api_url + "generate", data=data) as response:
                 response = await response.read()
