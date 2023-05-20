@@ -25,7 +25,7 @@ queue_to_process = asyncio.Queue()
 queue_to_send = asyncio.Queue()
 
 bot_name = "Night"
-bot_persona = "dry and sarcastic but knowledgeable assistant who loves coffee."
+bot_persona = "Dry and sarcastic but knowledgeable assistant who loves coffee."
 bot_text_sample = "Night: Hello, what do you want?"
 
 def get_character():
@@ -131,12 +131,22 @@ async def on_message(message):
         # Add request to a queue to process
         queue_item = [data, message]
         queue_to_process.put_nowait(queue_item)
-        
+
+
+# Slash command to update the bot's personality
+# Would be cool to have a command to show the existing personality without making any changes        
 @tree.command(name="personality", description="Adjust the bot's personality with this command.")
-@app_commands.describe(persona="Describe the bot's new personality using adjectives and whatnot.")
+@app_commands.describe(persona="Describe the bot's new personality.")
 async def personality(interaction, persona: str):
+
+    # Display current personality (in case the user needs to revert or something)
+    await interaction.response.send_message("Bot's current personality: " + bot_persona)
+    
+    # Update the global variable
     global bot_persona
     bot_persona = persona
-    await interaction.response.send_message("Persona has been updated to " + bot_persona)
+    
+    # Display new personality, so we know where we're at
+    await interaction.response.send_message("Bot's personality has been updated to: " + bot_persona)
    
 client.run('API_KEY')
