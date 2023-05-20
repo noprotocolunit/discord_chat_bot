@@ -147,12 +147,12 @@ async def on_message(message):
 @tree.command(name="personality", description="Adjust the bot's personality with this command.")
 @app_commands.describe(persona="Describe the bot's new personality.")
 async def personality(interaction, persona: str):
-
+    global bot_persona
+    
     # Display current personality (in case the user needs to revert or something)
     await interaction.response.send_message("Bot's current personality: " + bot_persona)
     
     # Update the global variable
-    global bot_persona
     bot_persona = persona
     
     # Display new personality, so we know where we're at
