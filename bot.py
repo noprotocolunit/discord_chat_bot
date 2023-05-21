@@ -47,7 +47,7 @@ def get_character_card():
 
     return character_card
         
-def create_prompt(message, author, character):
+async def create_prompt(message, author, character):
 
     # Take the provided message and strip out @NightBot
     user_input = message.content.replace("<@1080950961268342874>","")
@@ -55,9 +55,11 @@ def create_prompt(message, author, character):
     # Remove any spaces before and after the input.
     user_input = user_input.strip()
     
+    await add_to_message_history(author, user_input, author)    
+       
     # Create the prompt that will be sent in the prompt field.
     text = character + author + ": " + user_input + "\nNight: "
-
+    
     # Make me a JSON file
     data = {
         "prompt": text,
@@ -72,18 +74,28 @@ def create_prompt(message, author, character):
         "seed": 0,
         "mirostat_mode": 2,
         "mirostat_tau": 5.0,
-        "mirostat_eta": 0.2
-}
+        "mirostat_eta": 0.1
+    }
     
     # Turn the thing into a JSON string and return it
     prompt = json.dumps(data)
     return prompt
   
 async def clean_reply(data, author):
+
+        # Grab the text of the message
         message = json.loads(data)
         dirty_message = str(message['choices'][0]['text'])
+        
+        # Clean the text and prepare it for posting
+        dirty_message = dirty_message.strip()
         clean_message = dirty_message.replace(author + ":","")
         clean_message = clean_message.replace("\n\nNight:", "")
+        
+        # Add message to user's history
+        await add_to_message_history("NIght", clean_message, author)
+        
+        # Return nice and clean message
         return clean_message
  
 def should_bot_reply(message):
@@ -112,6 +124,22 @@ async def send_queue():
         answer = await clean_reply(reply[0], str(reply[1].author.name))
         await reply[1].channel.send(answer, reference=reply[1])   
         queue_to_send.task_done()
+
+async def add_to_message_history(author, message, file):
+        # Create the filename where to put the information
+        file_name = "context\\" + file + ".txt"
+        
+        #Add line to file
+        with open(file_name, 'a+', encoding="utf-8") as context:
+            context.write(author + ": " + message + "\n")
+            context.close()
+
+async def read_context(author):
+    file_name = "context/" + file + ".txt"
+   
+    with open(file_name, "a+") as file:
+        contents = file.readlines()
+    return str(contents[-5:])
 
 @client.event
 async def on_ready():
@@ -143,8 +171,13 @@ async def on_message(message):
     if should_bot_reply(message) == True:
         character = get_character_card()
         
+        user_input = message.content.replace("<@1080950961268342874>","")
+        user_input = user_input.strip()
+
         # Create the JSON prompt to use
-        data = create_prompt(message, str(message.author.name), character)
+        # history = read_context(str(message.author.name))
+        # print(history)
+        data = await create_prompt(message, str(message.author.name), character)
         
         # Add request to a queue to process
         queue_item = [data, message]
@@ -182,4 +215,5 @@ async def reset_personality(interaction):
     await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + bot_persona + "\".")
     
 client.run('API_KEY')
+
 
