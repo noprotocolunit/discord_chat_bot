@@ -23,10 +23,10 @@ queue_to_process = asyncio.Queue()
 #Stuff that needs to be sent to the user (post API)
 queue_to_send = asyncio.Queue()
 
-bot_name = "Night"
+bot_name = "NightBot"
 bot_persona = "coffee-loving, sarcastic friend with a dry sense of humor"
 bot_gender = "male"
-bot_text_sample = "Night: Hello, what do you want?"
+bot_text_sample = "NightBot: Hello, what do you want?"
 
 headers = {
     "Accept": "application/json",
@@ -55,15 +55,17 @@ async def create_prompt(message, author, character):
     # Remove any spaces before and after the input.
     user_input = user_input.strip()
     
+    history = await get_message_history(author, 10)
+    
     await add_to_message_history(author, user_input, author)    
        
     # Create the prompt that will be sent in the prompt field.
-    text = character + author + ": " + user_input + "\nNight: "
+    text = character + history + author + ": " + user_input + "\nNightBot: "
     
     # Make me a JSON file
     data = {
         "prompt": text,
-        "stop": [author+":", "Night:", "\n\n"],
+        "stop": [author+":", "NightBot:", "\n\n"],
         "max_tokens": 100,
         "user": author,
         "temperature": 0.72,
@@ -72,7 +74,7 @@ async def create_prompt(message, author, character):
         "repeat_penalty": 1.08,
         "n": 1,
         "seed": 0,
-        "mirostat_mode": 2,
+        "mirostat_mode": 1,
         "mirostat_tau": 5.0,
         "mirostat_eta": 0.1
     }
@@ -90,10 +92,10 @@ async def clean_reply(data, author):
         # Clean the text and prepare it for posting
         dirty_message = dirty_message.strip()
         clean_message = dirty_message.replace(author + ":","")
-        clean_message = clean_message.replace("\n\nNight:", "")
+        clean_message = clean_message.replace("\n\nNightBot:", "")
         
         # Add message to user's history
-        await add_to_message_history("NIght", clean_message, author)
+        await add_to_message_history("NightBot", clean_message, author)
         
         # Return nice and clean message
         return clean_message
@@ -109,7 +111,7 @@ async def process_queue():
     while True:
         content = await queue_to_process.get()
         data = content[0]
-        print("Sending" + data)
+        print("Sending prompt to LLM model.")
         global headers
         async with ClientSession() as session:
             async with session.post(api_url + "completions", headers=headers, data=data) as response:
@@ -134,12 +136,30 @@ async def add_to_message_history(author, message, file):
             context.write(author + ": " + message + "\n")
             context.close()
 
-async def read_context(author):
-    file_name = "context/" + file + ".txt"
-   
-    with open(file_name, "a+") as file:
-        contents = file.readlines()
-    return str(contents[-5:])
+async def get_message_history(author, message_count):
+    
+    # Create the relevant file name
+    file_name = "context\\" + author + ".txt"
+    
+    # Perform file-flavored voodooo!
+    try:
+        with open(file_name, "r", encoding="utf-8") as file:  # Open the file in read mode
+            contents = file.readlines()
+        
+        # If the file is getting long, trim it. Doing 20 lines max for now to avoid huge files.
+        if len(contents) > 30:
+            contents = contents[-20:]  # Keep the last 20 lines
+
+            with open(file_name, "w", encoding="utf-8") as file:  # Open the file in write mode
+                file.writelines(contents)  # Write the last 20 lines to the file
+
+        # Make the history into a clean, little string.
+        trimmed_contents = contents[-message_count:]
+        history_string = ''.join(trimmed_contents)
+        return history_string
+
+    except FileNotFoundError:  # And if it doesn't exist, return a blank ""
+        return ""
 
 @client.event
 async def on_ready():
@@ -150,7 +170,7 @@ async def on_ready():
     try: 
         api_check = requests.get(api_url + "models")
     except requests.exceptions.RequestException as e:
-        print(f'LLM KoboldCPP api is not currently up. Shutting down the bot.')
+        print(f'LLM api is not currently up. Shutting down the bot.')
         await client.close()
     
     #If we got there, then the API is up and here is the status of the model.
