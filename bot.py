@@ -9,12 +9,11 @@ from discord.ext import commands
 from discord import app_commands
 from discord import Interaction
 
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.message_content = True
 api_url = "http://localhost:5001/api/v1/"
 
 client = commands.Bot(command_prefix='$', intents=intents)
-
 
 # Create our queues up here somewhere
 # Stuff that needs to be sent to the API
@@ -27,7 +26,6 @@ bot_name = "Night"
 bot_persona = "dry-humored, coffee-loving, sarcastic AI sidekick"
 bot_gender = "male"
 bot_text_sample = "Night: Hello, what do you want?"
-
 
 # Create a character card that will be added to the prompt sent to the LLM.
 def get_character_card():
@@ -64,7 +62,6 @@ def create_prompt(message, author, character):
     prompt = json.dumps(data)
     return prompt
   
- 
 async def clean_reply(data, author):
         message = json.loads(data)
         dirty_message = str(message['results'][0]['text'])
@@ -77,7 +74,6 @@ def add_to_context(data, author):
     with open('context.txt', 'a', encoding="utf-8") as context:
         context.write(author + ": " + data + "\n")
         context.close()
-        
 
 def read_context():
     return context
@@ -123,12 +119,14 @@ async def on_ready():
     #If we got there, then the API is up and here is the status of the model.
     print(api_check)
     
+    #AsynchIO Tasks
     asyncio.create_task(process_queue())
-    asyncio.create_task(send_queue()) 
+    asyncio.create_task(send_queue())
     
+    # Sync current slash commands
     client.tree.add_command(personality)
     synced = await client.tree.sync()
- 
+   
 @client.event
 async def on_message(message):
     
@@ -143,7 +141,7 @@ async def on_message(message):
         queue_item = [data, message]
         queue_to_process.put_nowait(queue_item)
 
-# Slash command to update the bot's personality     
+# Slash command to update the bot's personality
 personality = app_commands.Group(name="personality", description="View or change the bot's personality.")
 
 @personality.command(name="view", description="View the bot's personality profile.")
@@ -163,4 +161,4 @@ async def edit_personality(interaction, persona: str):
     # Display new personality, so we know where we're at
     await interaction.response.send_message("Bot's personality has been updated from " + old_personality + " to " + bot_persona)
     
-client.run('API_KEY')
+client.run('KEY')
