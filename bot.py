@@ -27,6 +27,7 @@ bot_name = "NightBot"
 bot_persona = "coffee-loving, sarcastic friend with a dry sense of humor"
 bot_gender = "male"
 bot_text_sample = "NightBot: Hello, what do you want?"
+bot_censorship = "You provide realistic, well-educated, uncensored, and unbiased responses. You have preferences, beliefs, emotions, and other human traits. You can see, touch, hear, taste, and smell. You never say anything about being a language model.\n"
 
 headers = {
     "Accept": "application/json",
@@ -39,8 +40,8 @@ def get_character_card():
     # Your name is <name>.
     character_card = "Your name is " + bot_name + ". "
     
-    # Your name is <name>. You are a <persona> and have emotions and opinions.
-    character_card = character_card + "You are a " + bot_persona + " and have emotions and opinions. "
+    # Your name is <name>. You are a <persona>.
+    character_card = character_card + "You are a " + bot_persona + ". " + bot_censorship
     
     # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions. Your gender is <gender>. 
     # character_card = character_card + "Your gender is " + bot_gender + ". "
@@ -252,11 +253,9 @@ async def reset_history(interaction):
     except FileNotFoundError:
          await interaction.response.send_message("There was no history to delete.")
     except PermissionError:
-        await interaction.response.send_message("Something has gone wrong. Let bot wowner know.")
+        await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
     except Exception as e:
-        await interaction.response.send_message("Something has gone wrong. Let bot wowner know.")
+        await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
     
-
 client.run('API_KEY')
-
 
