@@ -147,7 +147,7 @@ personality = app_commands.Group(name="personality", description="View or change
 @personality.command(name="view", description="View the bot's personality profile.")
 async def view_personality(interaction):
     # Display current personality.
-    await interaction.response.send_message("Bot's personality is " + bot_persona + ".")
+    await interaction.response.send_message("The bot's current personality: **" + bot_persona + "**.")
     
 @personality.command(name="edit", description="Change the bot's personality.")
 @app_commands.describe(persona="Describe the bot's new personality.")
@@ -159,7 +159,7 @@ async def edit_personality(interaction, persona: str):
     bot_persona = persona
         
     # Display new personality, so we know where we're at
-    await interaction.response.send_message("Bot's personality has been updated from " + old_personality + " to " + bot_persona + ".")
+    await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + bot_persona + "\".")
 
 @personality.command(name="reset", description="Reset the bot's personality to the default.")
 async def reset_personality(interaction):
@@ -170,6 +170,6 @@ async def reset_personality(interaction):
     bot_persona = "dry-humored, coffee-loving, sarcastic AI sidekick"
         
     # Display new personality, so we know where we're at
-    await interaction.response.send_message("Bot's personality has been updated from " + old_personality + " to " + bot_persona + ".")
+    await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + bot_persona + "\".")
     
 client.run('KEY')
