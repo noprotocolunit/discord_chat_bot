@@ -182,6 +182,7 @@ async def on_ready():
     
     # Sync current slash commands (commented out unless we have new commands)
     client.tree.add_command(personality)
+    client.tree.add_command(history)
     await client.tree.sync()
    
 @client.event
@@ -233,7 +234,29 @@ async def reset_personality(interaction):
         
     # Display new personality, so we know where we're at
     await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + bot_persona + "\".")
+
+# Slash commands to update the conversation history    
+history = app_commands.Group(name="conversation-history", description="View or change the bot's personality.")
+
+@history.command(name="reset", description="Reset your conversation history with the bot.")
+async def reset_history(interaction):
     
+    # Get the user who started the interaction and find their file.
+    author = str(interaction.user.name)
+    file_name = "context\\" + author + ".txt"
+
+    # Attempt to remove the file and let the user know what happened.
+    try:
+        os.remove(file_name)
+        await interaction.response.send_message("Your conversation history was deleted.")
+    except FileNotFoundError:
+         await interaction.response.send_message("There was no history to delete.")
+    except PermissionError:
+        await interaction.response.send_message("Something has gone wrong. Let bot wowner know.")
+    except Exception as e:
+        await interaction.response.send_message("Something has gone wrong. Let bot wowner know.")
+    
+
 client.run('API_KEY')
 
 
