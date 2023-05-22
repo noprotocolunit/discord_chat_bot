@@ -5,6 +5,8 @@ import json
 import asyncio
 import httpx
 import random
+import functions
+
 from aiohttp import ClientSession
 from discord.ext import commands
 from discord import app_commands
@@ -284,5 +286,5 @@ async def view_history(interaction):
         await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
     
     
-client.run('API_KEY')
-
+# client.run('API_KEY')
+client.run('MTA4MDk1MDk2MTI2ODM0Mjg3NA.G1iru4.KAO3foK7Wa5a_r76O4EHv6MkgZNq_vdiWV9Y70')
