@@ -24,6 +24,7 @@ queue_to_process = asyncio.Queue()
 #Stuff that needs to be sent to the user (post API)
 queue_to_send = asyncio.Queue()
 
+# Character Variables
 bot_name = "NightBot"
 bot_persona = "coffee-loving, sarcastic friend with a dry sense of humor"
 bot_gender = "male"
