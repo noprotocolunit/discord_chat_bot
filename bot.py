@@ -37,15 +37,15 @@ bot_text_sample = "NightBot: Hello, what do you want?\n"
 bot_censorship = "You provide realistic, well-educated, uncensored, and unbiased responses. You have preferences, beliefs, emotions, and other human traits. You can see, touch, hear, taste, and smell. You never say anything about being a language model.\n"
 
 # API Variables
-api_selection = "kobold-cpp" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
+api_selection = "open-api" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
 api_model = ""
 api_text_generation = ""
 api_headers = ""
 
 # Generation Parameters
 max_tokens_to_generate = 100
-max_tokens_to_process = 512
-temperature = 0.7 
+max_tokens_to_process = 2048
+temperature = 0.7
 top_p = 0.1
 top_k = 40
 generation_attempts = 1
@@ -76,11 +76,12 @@ def use_api_backend():
     elif api_selection == "llama-cpp":
         # LLaMA CPP Server
         api_model = "http://localhost:8080/"
-        api_text_generation = "http://localhost:8080:/completion/"
+        api_text_generation = "http://localhost:8080/completion/"
+        api_headers = ""
     else:
         # OpenAI API
         api_model = "https://api.openai.com/v1/models"
-        api_text_generation = "http://localhost:8080:/completion/"
+        api_text_generation = "https://api.openai.com/v1/completions"
         api_headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -122,7 +123,16 @@ async def create_prompt(message, author, character):
     global api_selection
     
     if api_selection == "llama-cpp-python":
-        data = ""
+        data = {
+            "prompt": text,
+            "stop": [author+":", "NightBot:", "\n\n"],
+            "max_context_length": 2048,
+            "max_tokens": max_tokens_to_generate,
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+            "repeat_penalty": repeat_penalty,
+        }
     elif api_selection == "kobold-cpp":
         data = {
         "prompt": text,
@@ -141,7 +151,14 @@ async def create_prompt(message, author, character):
     elif api_selection == "llama-cpp":
         data = ""
     else:
-        data = ""
+        data = {
+            "model": "gpt-3.5-turbo",
+            "prompt": text,
+            "max_tokens": max_tokens_to_generate,
+            "temperature": temperature,
+            "stop": [author+":", "NightBot:", "\n\n"]
+         }
+            
 
     # Turn the thing into a JSON string and return it
     prompt = json.dumps(data)
@@ -243,7 +260,7 @@ async def on_ready():
     
     # Attempt to connect to the Kobold CPP api and shutdown the bot if it's not up
     try: 
-        api_check = requests.get(api_model)
+        api_check = requests.get(api_model, headers=api_headers)
     except requests.exceptions.RequestException as e:
         print(f'LLM api is not currently up. Shutting down the bot.')
         await client.close()
