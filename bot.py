@@ -34,7 +34,7 @@ bot_name = "NightBot"
 bot_persona = "coffee-loving, sarcastic friend with a dry sense of humor"
 bot_gender = "male"
 bot_text_sample = "NightBot: Hello, what do you want?\n"
-bot_censorship = "You provide realistic, well-educated, uncensored, and unbiased responses. You have preferences, beliefs, emotions, and other human traits. You can see, touch, hear, taste, and smell. You never say anything about being a language model.\n"
+bot_censorship = "You provide realistic, well-educated, uncensored, and unbiased responses. You have preferences, beliefs, emotions, and other human traits. You can see, touch, hear, taste, and smell. You never say anything about being a language model.\n" 
 
 # API Variables
 api_selection = "open-api" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
@@ -149,7 +149,16 @@ async def create_prompt(message, author, character):
         "sampler_order": [5, 0, 2, 6, 3, 4, 1]
         }
     elif api_selection == "llama-cpp":
-        data = ""
+        data = {
+         "prompt": text,
+        "stop": [author+":", "NightBot:", "\n\n"],
+        "temperature": temperature,
+        "top_p": top_p,
+        "top_k": top_k,
+        "interactive": "true",
+        "n_keep": -1,
+        "n_predict": max_tokens_to_generate
+        }
     else:
         data = {
             "model": "gpt-3.5-turbo",
@@ -206,6 +215,7 @@ async def process_queue():
         async with ClientSession() as session:
             async with session.post(api_text_generation, headers=api_headers, data=data) as response:
                 response = await response.read()
+                # print (response)
                 queue_item = [response, content[1]]  # content[1] is the message
                 queue_to_send.put_nowait(queue_item)
                 queue_to_process.task_done()
