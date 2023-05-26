@@ -25,9 +25,7 @@ queue_to_process = asyncio.Queue()
 queue_to_send = asyncio.Queue()
 
 # API Keys and Information
-discord_api_key = ""
-openai_api_key = ""
-openai_organization = ""
+
 
 # Character Variables
 bot_name = "NightBot"
@@ -229,7 +227,7 @@ async def send_queue():
 
 async def add_to_message_history(author, message, file):
         # Create the filename where to put the information
-        file_name = "context\\" + file + ".txt"
+        file_name = functions.get_filename("context", file, "txt")
         
         #Add line to file
         with open(file_name, 'a+', encoding="utf-8") as context:
@@ -239,7 +237,7 @@ async def add_to_message_history(author, message, file):
 async def get_message_history(author, message_count):
     
     # Create the relevant file name
-    file_name = "context\\" + author + ".txt"
+    file_name = functions.get_filename("context", author, "txt")
     
     # Perform file-flavored voodooo!
     try:
@@ -345,7 +343,7 @@ async def reset_history(interaction):
     
     # Get the user who started the interaction and find their file.
     author = str(interaction.user.name)
-    file_name = "context\\" + author + ".txt"
+    file_name = functions.get_filename("context", author, "txt")
 
     # Attempt to remove the file and let the user know what happened.
     try:
@@ -362,7 +360,7 @@ async def reset_history(interaction):
 async def view_history(interaction):
     # Get the user who started the interaction and find their file.
     author = str(interaction.user.name)
-    file_name = "context\\" + author + ".txt"
+    file_name = functions.get_filename("context", author, "txt")
     
     try:
         with open(file_name, "r", encoding="utf-8") as file:  # Open the file in read mode
