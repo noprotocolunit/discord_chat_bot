@@ -24,7 +24,6 @@ queue_to_process = asyncio.Queue()
 #Stuff that needs to be sent to the user (post API)
 queue_to_send = asyncio.Queue()
 
-
 # API Keys and Information
 discord_api_key = ""
 openai_api_key = ""
@@ -55,12 +54,13 @@ mirostat_mode = 2 # For APIs that support this, it will negate temperature and t
 mirostat_tau = 5.0
 mirostat_eta = 0.1 # mirostat learning rate
 
-def use_api_backend(model):
+def use_api_backend():
+    global api_selection
     global api_model
     global api_headers
     global api_text_generation
     
-    if model == "llama-cpp-python":
+    if api_selection == "llama-cpp-python":
         # LLaMA-CPP-Python
         api_model = "http://localhost:8000/v1/models"
         api_text_generation = "http://localhost:8000/v1/completions"
@@ -68,11 +68,12 @@ def use_api_backend(model):
             "Accept": "application/json",
             "Content-Type": "application/json"
             }
-    elif model == "kobold-cpp":
+    elif api_selection == "kobold-cpp":
         # Kobold-CPP
         api_model = "http://localhost:5001/api/v1/model"
         api_text_generation = "http://localhost:5001/api/v1/generate"
-    elif model == "llama-cpp":
+        api_headers = ""
+    elif api_selection == "llama-cpp":
         # LLaMA CPP Server
         api_model = "http://localhost:8080/"
         api_text_generation = "http://localhost:8080:/completion/"
@@ -117,44 +118,59 @@ async def create_prompt(message, author, character):
     text = character + history + author + ": " + user_input + "\nNightBot: "
     
     # Make me a JSON file
-    data = {
+    
+    global api_selection
+    
+    if api_selection == "llama-cpp-python":
+        data = ""
+    elif api_selection == "kobold-cpp":
+        data = {
         "prompt": text,
-        # "stop": [author+":", "NightBot:", "\n\n"],
         "stop_sequence": [author+":", "NightBot:", "\n\n"],
         "max_context_length": 2048,
-        # "max_tokens": max_tokens_to_generate,
         "max_length": max_tokens_to_generate,
         "temperature": temperature,
         "top_p": top_p,
         "top_k": top_k,
-        # "repeat_penalty": repeat_penalty,
         "rep_pen": repeat_penalty,
         "mirostat_mode": mirostat_mode,
         "mirostat_tau": mirostat_tau,
         "mirostat_eta": mirostat_eta,
         "sampler_order": [5, 0, 2, 6, 3, 4, 1]
-    }
-    
+        }
+    elif api_selection == "llama-cpp":
+        data = ""
+    else:
+        data = ""
+
     # Turn the thing into a JSON string and return it
     prompt = json.dumps(data)
     return prompt
   
 async def clean_reply(data, author):
 
-        # Grab the text of the message
-        message = json.loads(data)
+    # Grab the text of the message
+    message = json.loads(data)
+
+    if api_selection == "llama-cpp-python":
         dirty_message = str(message['choices'][0]['text'])
-        
-        # Clean the text and prepare it for posting
-        dirty_message = dirty_message.strip()
-        clean_message = dirty_message.replace(author + ":","")
-        clean_message = clean_message.replace("\n\nNightBot:", "")
-        
-        # Add message to user's history
-        await add_to_message_history("NightBot", clean_message, author)
-        
-        # Return nice and clean message
-        return clean_message
+    elif api_selection == "kobold-cpp":
+        dirty_message = str(message['results'][0]['text'])
+    elif api_selection == "llama-cpp":
+        dirty_message = str(message['choices'][0]['text'])
+    else:
+        dirty_message = str(message['choices'][0]['text'])
+
+    # Clean the text and prepare it for posting
+    dirty_message = dirty_message.strip()
+    clean_message = dirty_message.replace(author + ":","")
+    clean_message = clean_message.replace("\n\nNightBot:", "")
+
+    # Add message to user's history
+    await add_to_message_history("NightBot", clean_message, author)
+
+    # Return nice and clean message
+    return clean_message
  
 def should_bot_reply(message):
     if message.author == client.user:
@@ -164,13 +180,14 @@ def should_bot_reply(message):
     return False
 
 async def process_queue():
+    global api_headers
     while True:
         content = await queue_to_process.get()
         data = content[0]
         print("Sending prompt to LLM model.")
         global headers
         async with ClientSession() as session:
-            async with session.post(api_text_generation, headers=headers, data=data) as response:
+            async with session.post(api_text_generation, headers=api_headers, data=data) as response:
                 response = await response.read()
                 queue_item = [response, content[1]]  # content[1] is the message
                 queue_to_send.put_nowait(queue_item)
@@ -222,7 +239,7 @@ async def on_ready():
     # Let owner known in the console that the bot is now running!
     print(f'NightBot is up and running.')
     
-    use_api_backend(api_selection)
+    use_api_backend()
     
     # Attempt to connect to the Kobold CPP api and shutdown the bot if it's not up
     try: 
