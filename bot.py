@@ -35,7 +35,7 @@ bot_text_sample = "NightBot: Hello, what do you want?\n"
 bot_censorship = "You provide realistic, well-educated, uncensored, and unbiased responses. You have preferences, beliefs, emotions, and other human traits. You can see, touch, hear, taste, and smell. You never say anything about being a language model.\n" 
 
 # API Variables
-api_selection = "open-api" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
+api_selection = "textgen-ui" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
 api_model = ""
 api_text_generation = ""
 api_headers = ""
@@ -76,6 +76,14 @@ def use_api_backend():
         api_model = "http://localhost:8080/"
         api_text_generation = "http://localhost:8080/completion/"
         api_headers = ""
+    elif api_selection == "textgen-ui":
+        # TextGen Server
+        api_model = "http://192.168.1.50:5000/api/v1/model"
+        api_text_generation = "http://192.168.1.50:5000/api/v1/generate"
+        api_headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+            }
     else:
         # OpenAI API
         api_model = "https://api.openai.com/v1/models"
@@ -89,6 +97,9 @@ def use_api_backend():
 
 # Create a character card that will be added to the prompt sent to the LLM.
 def get_character_card():
+    # file_name = functions.get_filename("characters", "default", "json")
+    # file = open(file_name, 'r')
+    # character = file.read()
 
     # Your name is <name>.
     character_card = "Your name is " + bot_name + ". "
@@ -109,7 +120,7 @@ async def create_prompt(message, author, character):
     # Remove any spaces before and after the input.
     user_input = user_input.strip()
     
-    history = await get_message_history(author, 10)
+    history = await get_message_history(author, 15)
     
     await add_to_message_history(author, user_input, author)    
        
@@ -129,37 +140,66 @@ async def create_prompt(message, author, character):
             "temperature": temperature,
             "top_p": top_p,
             "top_k": top_k,
-            "repeat_penalty": repeat_penalty,
+            "repeat_penalty": repeat_penalty
         }
     elif api_selection == "kobold-cpp":
         data = {
-        "prompt": text,
-        "stop_sequence": [author+":", "NightBot:", "\n\n"],
-        "max_context_length": 2048,
-        "max_length": max_tokens_to_generate,
-        "temperature": temperature,
-        "top_p": top_p,
-        "top_k": top_k,
-        "rep_pen": repeat_penalty,
-        "mirostat_mode": mirostat_mode,
-        "mirostat_tau": mirostat_tau,
-        "mirostat_eta": mirostat_eta,
-        "sampler_order": [5, 0, 2, 6, 3, 4, 1]
+            "prompt": text,
+            "stop_sequence": [author+":", "NightBot:", "\n\n"],
+            "max_context_length": 2048,
+            "max_length": max_tokens_to_generate,
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+            "rep_pen": repeat_penalty,
+            "mirostat_mode": mirostat_mode,
+            "mirostat_tau": mirostat_tau,
+            "mirostat_eta": mirostat_eta,
+            "sampler_order": [5, 0, 2, 6, 3, 4, 1]
         }
     elif api_selection == "llama-cpp":
         data = {
-         "prompt": text,
-        "stop": [author+":", "NightBot:", "\n\n"],
-        "temperature": temperature,
-        "top_p": top_p,
-        "top_k": top_k,
-        "interactive": "true",
-        "n_keep": -1,
-        "n_predict": max_tokens_to_generate
+            "prompt": text,
+            "stop": [author+":", "NightBot:", "\n\n"],
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+            "interactive": True,
+            "n_keep": -1,
+            "n_predict": max_tokens_to_generate
+        }
+    elif api_selection == "textgen-ui":
+        data = {
+            "prompt": text,
+            'max_new_tokens': 400,
+            'do_sample': True,
+            'temperature': 0.7,
+            'top_p': 0.1,
+            'typical_p': 1,
+            'epsilon_cutoff': 0,  # In units of 1e-4
+            'eta_cutoff': 0,  # In units of 1e-4
+            'repetition_penalty': 1.18,
+            'top_k': 40,
+            'min_length': 0,
+            'no_repeat_ngram_size': 0,
+            'num_beams': 1,
+            'penalty_alpha': 0,
+            'length_penalty': 1,
+            'early_stopping': False,
+            'mirostat_mode': 0,
+            'mirostat_tau': 5,
+            'mirostat_eta': 0.1,
+            'seed': -1,
+            'add_bos_token': True,
+            'truncation_length': 2048,
+            'ban_eos_token': False,
+            'skip_special_tokens': True,
+            'stopping_strings': ['\n' + author + ":", "\nNightBot:", '\nYou:' ]
         }
     else:
         data = {
-            "model": "gpt-3.5-turbo",
+            # "model": "gpt-3.5-turbo",
+            "model": "text-davinci-003",
             "prompt": text,
             "max_tokens": max_tokens_to_generate,
             "temperature": temperature,
@@ -176,12 +216,8 @@ async def clean_reply(data, author):
     # Grab the text of the message
     message = json.loads(data)
 
-    if api_selection == "llama-cpp-python":
-        dirty_message = str(message['choices'][0]['text'])
-    elif api_selection == "kobold-cpp":
+    if api_selection == "kobold-cpp" or api_selection == "textgen-ui":
         dirty_message = str(message['results'][0]['text'])
-    elif api_selection == "llama-cpp":
-        dirty_message = str(message['choices'][0]['text'])
     else:
         dirty_message = str(message['choices'][0]['text'])
 
@@ -244,9 +280,9 @@ async def get_message_history(author, message_count):
         with open(file_name, "r", encoding="utf-8") as file:  # Open the file in read mode
             contents = file.readlines()
         
-        # If the file is getting long, trim it. Doing 20 lines max for now to avoid huge files.
-        if len(contents) > 30:
-            contents = contents[-20:]  # Keep the last 20 lines
+        # If the file is getting long, trim it. Doing 30 lines max for now to avoid huge files.
+        if len(contents) > 45:
+            contents = contents[-30:]  # Keep the last 30 lines
 
             with open(file_name, "w", encoding="utf-8") as file:  # Open the file in write mode
                 file.writelines(contents)  # Write the last 20 lines to the file
@@ -288,8 +324,10 @@ async def on_ready():
 @client.event
 async def on_message(message):
     
+    
     # Check to see the bot should reply
     if should_bot_reply(message) == True:
+        await message.add_reaction('🆗')
         character = get_character_card()
         
         user_input = message.content.replace("<@1080950961268342874>","")
