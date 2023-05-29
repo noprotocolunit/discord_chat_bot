@@ -237,6 +237,8 @@ def should_bot_reply(message):
         return False
     if client.user.mentioned_in(message):
         return True
+    if message.guild is None and not message.author.bot:
+        return True
     return False
 
 async def process_queue():
