@@ -44,7 +44,7 @@ api_headers = ""
 max_tokens_to_generate = 100
 max_tokens_to_process = 2048
 temperature = 0.7
-top_p = 0.1
+top_p = 0.75
 top_k = 40
 generation_attempts = 1
 repeat_penalty = 1.18
@@ -173,13 +173,13 @@ async def create_prompt(message, author, character):
             "prompt": text,
             'max_new_tokens': 400,
             'do_sample': True,
-            'temperature': 0.7,
-            'top_p': 0.1,
+            'temperature': temperature,
+            'top_p': top_p,
             'typical_p': 1,
             'epsilon_cutoff': 0,  # In units of 1e-4
             'eta_cutoff': 0,  # In units of 1e-4
-            'repetition_penalty': 1.18,
-            'top_k': 40,
+            'repetition_penalty': repeat_penalty,
+            'top_k': top_k,
             'min_length': 0,
             'no_repeat_ngram_size': 0,
             'num_beams': 1,
@@ -410,5 +410,18 @@ async def view_history(interaction):
         await interaction.response.send_message("You have no history to display.")
     except Exception as e:
         await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
+
+# Slash commands for character card presets (if not interested in manually updating) 
+character = app_commands.Group(name="character-cards", description="View or changs the bot's current character card, including name and image.")
+
+# Command to view a list of available characters.
+@character.command(name="view", description="View a list of current character presets.")
+async def view_character_list(interaction):
+
+    #Get character list
+    file_list = functions.get_character_list("characters")
+    
+    await interaction.response.send_message(file_list)
+    
     
 client.run(discord_api_key)
