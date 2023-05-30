@@ -433,7 +433,8 @@ async def change_character(interaction):
     select = discord.ui.Select(placeholder='Select a character card', options=options)
     
     async def select_callback(interaction):
-        await interaction.response.send_message(select.values[0])
+        character = functions.get_character_card(select.values[0])
+        await interaction.response.send_message(character)
 
     select.callback = select_callback
     view.add_item(select)    
