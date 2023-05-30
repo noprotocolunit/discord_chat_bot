@@ -1,12 +1,34 @@
-def get_character_card():
+import json
+import os
 
-    # Your name is <name>.
-    character_card = "Your name is " + bot_name + ". "
-    
-    # Your name is <name>. You are a <persona>.
-    character_card = character_card + "You are a " + bot_persona + ". " + bot_censorship + bot_text_sample
-    
-    # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions. Your gender is <gender>. 
-    # character_card = character_card + "Your gender is " + bot_gender + ". "
+def get_filename(directory, file, extension):
+    return directory + "\\" + file + "." + extension
 
-    return character_card
+# Get the contents of a character file (which should contain everything about the character)
+def get_character_card(name):
+    
+    #Get the name of the file we'll be using
+    file = os.path.join("characters", name)
+    
+    # Open the file and load its contents into a JSON
+    with open(file, 'r') as file:
+        character = json.load(file)
+    
+    #return the contents of the JSON file
+    return character
+    
+        
+# Get the list of all available characters (files in the character directory, hopefully)
+def get_character_card_list(directory):
+
+    # Try to get the list of character files from the directory provided. 
+    try:
+        dir_path = directory + "\\"
+        files = os.listdir(dir_path)
+    except FileNotFoundError:
+        files = []
+    except OSError:
+        files = []
+
+    # Return either the list of files or a blank list.
+    return files
