@@ -19,9 +19,16 @@ def get_character_card(name):
     return character
 
 # Get the list of all available characters (files in the character directory, hopefully)
-def get_character_list(directory):
+def get_character_card_list(directory):
 
-    dir_path = directory + "\\"
-    files = os.listdir(dir_path)
+    # Try to get the list of character files from the directory provided. 
+    try:
+        dir_path = directory + "\\"
+        files = os.listdir(dir_path)
+    except FileNotFoundError:
+        files = []
+    except OSError:
+        files = []
 
+    # Return either the list of files or a blank list.
     return files

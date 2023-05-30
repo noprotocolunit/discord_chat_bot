@@ -421,23 +421,27 @@ character = app_commands.Group(name="character-cards", description="View or chan
 @character.command(name="change", description="View a list of current character presets.")
 async def change_character(interaction):
     
-    #Some options for the dropdown menu
-    options = [
-        discord.SelectOption(label='Default Personality 🗡️', value='default'),
-        discord.SelectOption(label='Friendly Assistant 📃', value='librarian'),
-        discord.SelectOption(label='Chill Conversation and Support 👂', value='therapist')
-    ]
+    # Get a list of available character cards
+    character_cards = get_character_card_list("characters")
+    options = []
     
-    # We have a view and we;re putting things into it. 
-    view = discord.ui.View()
-    select = discord.ui.Select(placeholder='Select a character card', options=options)
-    
-    async def select_callback(interaction):
-        character = functions.get_character_card(select.values[0])
-        await interaction.response.send_message(character)
+    # Verify the list is not currently empty
+    if not character_cards:
+        await interaction.response.send_message("No character cards are currently available.")
+        return
+        
+    # Create the selector list with all the available options.
+    for card in character_cards:
+        options.append(discord.SelectOption(label=card, value=card))
 
-    select.callback = select_callback
-    view.add_item(select)    
+    select = discord.Select(placeholder="Select a character card.", options=options, callback=character_select_callback)
+    view = discord.ui.View()
+    view.add_item(select)
+
     await interaction.response.send_message('Select a character card', view=view)
+
+async def character_select_callback(interaction):
+    character = functions.get_character_card(select.values[0])
+    await interaction.response.send_message(character)
      
 client.run(discord_api_key)
