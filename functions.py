@@ -9,7 +9,7 @@ def get_filename(directory, file, extension):
 def get_character_card(name):
     
     #Get the name of the file we'll be using
-    file = get_filename("characters", name, ".json")
+    file = "characters\\" + name
     
     # Open the file and load its contents into a JSON
     with open(file, 'r') as file:
