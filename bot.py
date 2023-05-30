@@ -106,10 +106,7 @@ def get_character():
     character = "Your name is " + character_card["name"] + ". "
     
     # Your name is <name>. You are a <persona>.
-    character = character + "You are a " + character_card["persona"] + ". " + character_card["instructions"]
-    
-    # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions. Your gender is <gender>. 
-    # character_card = character_card + "Your gender is " + bot_gender + ". "
+    character = character + "You are a " + character_card["persona"] + ". " + character_card["instructions"] + character_card["example_text"]
 
     return character
         
@@ -453,6 +450,6 @@ async def character_select_callback(interaction):
     character_card["instructions"] = character["instructions"]
     character_card["image"] = character["image"]
     
-    await interaction.response.send_message(character_card)
+    await interaction.response.send_message("Character personality has been adjusted. Thank you for your patience.")
      
 client.run(discord_api_key)
