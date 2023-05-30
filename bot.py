@@ -321,6 +321,7 @@ async def on_ready():
     # Sync current slash commands (commented out unless we have new commands)
     client.tree.add_command(personality)
     client.tree.add_command(history)
+    client.tree.add_command(character)
     await client.tree.sync()
    
 @client.event
@@ -417,13 +418,25 @@ async def view_history(interaction):
 character = app_commands.Group(name="character-cards", description="View or changs the bot's current character card, including name and image.")
 
 # Command to view a list of available characters.
-@character.command(name="view", description="View a list of current character presets.")
-async def view_character_list(interaction):
+@character.command(name="change", description="View a list of current character presets.")
+async def change_character(interaction):
+    
+    #Some options for the dropdown menu
+    options = [
+        discord.SelectOption(label='Default Personality 🗡️', value='default'),
+        discord.SelectOption(label='Friendly Assistant 📃', value='librarian'),
+        discord.SelectOption(label='Chill Conversation and Support 👂', value='therapist')
+    ]
+    
+    # We have a view and we;re putting things into it. 
+    view = discord.ui.View()
+    select = discord.ui.Select(placeholder='Select a character card', options=options)
+    
+    async def select_callback(interaction):
+        await interaction.response.send_message(select.values[0])
 
-    #Get character list
-    file_list = functions.get_character_list("characters")
-    
-    await interaction.response.send_message(file_list)
-    
-    
+    select.callback = select_callback
+    view.add_item(select)    
+    await interaction.response.send_message('Select a character card', view=view)
+     
 client.run(discord_api_key)
