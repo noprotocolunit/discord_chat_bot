@@ -444,6 +444,6 @@ async def change_character(interaction):
 async def character_select_callback(interaction):
     info = interaction.data.get("values", [])[0]
     character_card = functions.get_character_card(info)
-    await interaction.response.send_message(info)
+    await interaction.response.send_message(character_card)
      
 client.run(discord_api_key)
