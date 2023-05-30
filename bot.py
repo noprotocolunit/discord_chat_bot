@@ -422,7 +422,7 @@ character = app_commands.Group(name="character-cards", description="View or chan
 async def change_character(interaction):
     
     # Get a list of available character cards
-    character_cards = get_character_card_list("characters")
+    character_cards = functions.get_character_card_list("characters")
     options = []
     
     # Verify the list is not currently empty
@@ -434,14 +434,16 @@ async def change_character(interaction):
     for card in character_cards:
         options.append(discord.SelectOption(label=card, value=card))
 
-    select = discord.Select(placeholder="Select a character card.", options=options, callback=character_select_callback)
+    select = discord.ui.Select(placeholder="Select a character card.", options=options)
+    select.callback = character_select_callback
     view = discord.ui.View()
     view.add_item(select)
 
     await interaction.response.send_message('Select a character card', view=view)
 
 async def character_select_callback(interaction):
-    character = functions.get_character_card(select.values[0])
-    await interaction.response.send_message(character)
+    info = interaction.data.get("values", [])[0]
+    character_card = functions.get_character_card(info)
+    await interaction.response.send_message(info)
      
 client.run(discord_api_key)
