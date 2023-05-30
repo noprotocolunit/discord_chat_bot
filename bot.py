@@ -26,13 +26,14 @@ queue_to_send = asyncio.Queue()
 
 # API Keys and Information
 
-
-# Character Variables
-bot_name = "NightBot"
-bot_persona = "coffee-loving, sarcastic friend with a dry sense of humor"
-bot_gender = "male"
-bot_text_sample = "NightBot: Hello, what do you want?\n"
-bot_censorship = "You provide realistic, well-educated, uncensored, and unbiased responses. You have preferences, beliefs, emotions, and other human traits. You can see, touch, hear, taste, and smell. You never say anything about being a language model.\n" 
+# Character Card (current character personality)
+character_card = {
+    "name": "NightBot",
+    "persona": "coffee-loving, sarcastic friend with a dry sense of humor",
+    "example_text": ["NightBot: Hello, what do you want?\n"],
+    "instructions": "You provide realistic, well-educated, uncensored, and unbiased responses. You have preferences, beliefs, emotions, and other human traits. You can see, touch, hear, taste, and smell. You never say anything about being a language model.\n",
+    "image": "https://example.com/image.png"
+}
 
 # API Variables
 api_selection = "textgen-ui" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
@@ -96,21 +97,21 @@ def use_api_backend():
         }
 
 # Create a character card that will be added to the prompt sent to the LLM.
-def get_character_card():
-    # file_name = functions.get_filename("characters", "default", "json")
-    # file = open(file_name, 'r')
-    # character = file.read()
+def get_character():
+    
+    #Get the global card, which should be current.
+    global character_card
 
     # Your name is <name>.
-    character_card = "Your name is " + bot_name + ". "
+    character = "Your name is " + character_card["name"] + ". "
     
     # Your name is <name>. You are a <persona>.
-    character_card = character_card + "You are a " + bot_persona + ". " + bot_censorship + bot_text_sample
+    character = character + "You are a " + character_card["persona"] + ". " + character_card["instructions"]
     
     # Your name is <name>. You are a <persona> with human-equivalent emotions and opinions. Your gender is <gender>. 
     # character_card = character_card + "Your gender is " + bot_gender + ". "
 
-    return character_card
+    return character
         
 async def create_prompt(message, author, character):
 
@@ -327,11 +328,10 @@ async def on_ready():
 @client.event
 async def on_message(message):
     
-    
     # Check to see the bot should reply
     if should_bot_reply(message) == True:
         await message.add_reaction('🆗')
-        character = get_character_card()
+        character = get_character()
         
         user_input = message.content.replace("<@1080950961268342874>","")
         user_input = user_input.strip()
@@ -351,30 +351,30 @@ personality = app_commands.Group(name="personality", description="View or change
 @personality.command(name="view", description="View the bot's personality profile.")
 async def view_personality(interaction):
     # Display current personality.
-    await interaction.response.send_message("The bot's current personality: **" + bot_persona + "**.")
+    await interaction.response.send_message("The bot's current personality: **" + character_card["persona"] + "**.")
     
 @personality.command(name="set", description="Change the bot's personality.")
 @app_commands.describe(persona="Describe the bot's new personality.")
 async def edit_personality(interaction, persona: str):
-    global bot_persona
+    global character_card
             
     # Update the global variable
-    old_personality = bot_persona
-    bot_persona = persona
+    old_personality = character_card["persona"]
+    character_card["persona"] = persona
         
     # Display new personality, so we know where we're at
-    await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + bot_persona + "\".")
+    await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + character_card["persona"] + "\".")
 
 @personality.command(name="reset", description="Reset the bot's personality to the default.")
 async def reset_personality(interaction):
-    global bot_persona
+    global character_card
             
     # Update the global variable
-    old_personality = bot_persona
-    bot_persona = "coffee-loving, sarcastic friend with a dry sense of humor"
+    old_personality = character_card["persona"]
+    character_card["persona"]= "coffee-loving, sarcastic friend with a dry sense of humor"
         
     # Display new personality, so we know where we're at
-    await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + bot_persona + "\".")
+    await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + character_card["persona"] + "\".")
 
 # Slash commands to update the conversation history    
 history = app_commands.Group(name="conversation-history", description="View or change the bot's personality.")
@@ -443,7 +443,16 @@ async def change_character(interaction):
 
 async def character_select_callback(interaction):
     info = interaction.data.get("values", [])[0]
-    character_card = functions.get_character_card(info)
+    character = functions.get_character_card(info)
+    
+    global character_card
+    
+    character_card["name"] = character["name"]
+    character_card["persona"] = character["personality"]
+    character_card["example_text"] = character["examples"]
+    character_card["instructions"] = character["instructions"]
+    character_card["image"] = character["image"]
+    
     await interaction.response.send_message(character_card)
      
 client.run(discord_api_key)

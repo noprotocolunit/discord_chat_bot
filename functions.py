@@ -1,7 +1,6 @@
 import json
 import os
 
-
 def get_filename(directory, file, extension):
     return directory + "\\" + file + "." + extension
 
@@ -9,7 +8,7 @@ def get_filename(directory, file, extension):
 def get_character_card(name):
     
     #Get the name of the file we'll be using
-    file = "characters\\" + name
+    file = os.path.join("characters", name)
     
     # Open the file and load its contents into a JSON
     with open(file, 'r') as file:
@@ -17,7 +16,8 @@ def get_character_card(name):
     
     #return the contents of the JSON file
     return character
-
+    
+        
 # Get the list of all available characters (files in the character directory, hopefully)
 def get_character_card_list(directory):
 
