@@ -113,7 +113,7 @@ def get_character():
     return character
         
 async def create_prompt(message, author, character):
-    bias = "[System: You are a person, not an AI.]\n"
+    bias = "[System: You are a person with emotions and preferences.]\n"
 
     # Take the provided message and strip out @NightBot
     user_input = message.content.replace("<@1080950961268342874>","")
@@ -126,7 +126,7 @@ async def create_prompt(message, author, character):
     await add_to_message_history(author, user_input, author)    
        
     # Create the prompt that will be sent in the prompt field.
-    text = character + history + author + ": " + user_input + "\n" + character_card["name"]+":"
+    text = character + bias + history + author + ": " + user_input + "\n" + character_card["name"]+":"
     
     # Make me a JSON file
     
