@@ -26,7 +26,8 @@ queue_to_process = asyncio.Queue()
 queue_to_send = asyncio.Queue()
 
 # API Keys and Information
-
+# Your API keys and tokens go here. Do not commit with these in place!
+                                                             
 
 # Character Card (current character personality)
 character_card = {
@@ -330,6 +331,13 @@ async def on_message(message):
 
     # Check to see the bot should reply
     if should_bot_reply(message) == True:
+
+        # These are relevant to me only -- this is how I see the temperature of the card where the LLM is running
+        # Comment these lines out if you're not me.
+        p = subprocess.Popen(["powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1"], stdout=subprocess.PIPE)
+        data = p.communicate()[0]
+        await client.change_presence(status=discord.Status.online, activity=discord.Game(f'data))
+        
         await message.add_reaction('🆗')
         character = get_character()
         
@@ -345,9 +353,6 @@ async def on_message(message):
         queue_item = [data, message]
         queue_to_process.put_nowait(queue_item)
         
-        p = subprocess.Popen(["powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1"], stdout=subprocess.PIPE)
-        data = p.communicate()[0]
-        await client.change_presence(status=discord.Status.online, activity=discord.Game(data))
 
 # Slash command to update the bot's personality
 personality = app_commands.Group(name="personality", description="View or change the bot's personality.")
@@ -397,8 +402,9 @@ async def reset_history(interaction):
     except FileNotFoundError:
          await interaction.response.send_message("There was no history to delete.")
     except PermissionError:
-        await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
+        await interaction.response.send_message("The bot doesn't have permission to reset your history. Let bot owner know.")
     except Exception as e:
+        print(e)
         await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
 
 @history.command(name="view", description=" View the last 20 lines of your conversation history.")
@@ -417,7 +423,7 @@ async def view_history(interaction):
         await interaction.response.send_message("You have no history to display.")
     except Exception as e:
         print(e)
-        await interaction.response.send_message("Message history is more than 2000 characters and can't be printed.")
+        await interaction.response.send_message("Message history is more than 2000 characters and can't be displayed.")
 
 # Slash commands for character card presets (if not interested in manually updating) 
 character = app_commands.Group(name="character-cards", description="View or changs the bot's current character card, including name and image.")
@@ -444,12 +450,18 @@ async def change_character(interaction):
     view = discord.ui.View()
     view.add_item(select)
 
+    # Show the dropdown menu to the user
     await interaction.response.send_message('Select a character card', view=view)
 
 async def character_select_callback(interaction):
-    info = interaction.data.get("values", [])[0]
-    character = functions.get_character_card(info)
     
+    # Get the value selected by the user via the dropdown.
+    selection = interaction.data.get("values", [])[0]
+    
+    # Get the JSON file associated with that selection
+    character = functions.get_character_card(selection)
+    
+    # Adjust the character card for the bot to match what the user selected.
     global character_card
     
     character_card["name"] = character["name"]
@@ -458,10 +470,13 @@ async def character_select_callback(interaction):
     character_card["instructions"] = character["instructions"]
     character_card["image"] = character["image"]
     
+    # Get the image that's indicated on the character card
     response = requests.get(character_card["image"])
-    data = response.content
-    await client.user.edit(username=character_card["name"], avatar=data)
     
-    await interaction.response.send_message("Bot personality has been adjusted. Thank you for your patience.")
+    #Set the bot's new name and new avatar!
+    await client.user.edit(username=character_card["name"], avatar=response.content)
+    
+    # Let the user know that their request has been completed
+    await interaction.response.send_message("The bot's personality has been adjusted.")
      
 client.run(discord_api_key)
