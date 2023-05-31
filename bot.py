@@ -6,6 +6,7 @@ import asyncio
 import httpx
 import random
 import functions
+import subprocess, sys
 
 from aiohttp import ClientSession
 from discord.ext import commands
@@ -25,6 +26,7 @@ queue_to_process = asyncio.Queue()
 queue_to_send = asyncio.Queue()
 
 # API Keys and Information
+
 
 # Character Card (current character personality)
 character_card = {
@@ -106,11 +108,12 @@ def get_character():
     character = "Your name is " + character_card["name"] + ". "
     
     # Your name is <name>. You are a <persona>.
-    character = character + "You are a " + character_card["persona"] + ". " + character_card["instructions"] + character_card["example_text"]
+    character = character + "You are a " + character_card["persona"] + ". " + character_card["instructions"] + ' '.join(character_card['example_text'])
 
     return character
         
 async def create_prompt(message, author, character):
+    bias = "[System: You are a person, not an AI.]\n"
 
     # Take the provided message and strip out @NightBot
     user_input = message.content.replace("<@1080950961268342874>","")
@@ -123,7 +126,7 @@ async def create_prompt(message, author, character):
     await add_to_message_history(author, user_input, author)    
        
     # Create the prompt that will be sent in the prompt field.
-    text = character + history + author + ": " + user_input + "\nNightBot: "
+    text = character + history + author + ": " + user_input + "\n" + character_card["name"]+":"
     
     # Make me a JSON file
     
@@ -132,7 +135,7 @@ async def create_prompt(message, author, character):
     if api_selection == "llama-cpp-python":
         data = {
             "prompt": text,
-            "stop": [author+":", "NightBot:", "\n\n"],
+            "stop": [author+":", character_card["name"]+":", "\n\n"],
             "max_context_length": 2048,
             "max_tokens": max_tokens_to_generate,
             "temperature": temperature,
@@ -143,7 +146,7 @@ async def create_prompt(message, author, character):
     elif api_selection == "kobold-cpp":
         data = {
             "prompt": text,
-            "stop_sequence": [author+":", "NightBot:", "\n\n"],
+            "stop_sequence": [author+":", character_card["name"]+":", "\n\n"],
             "max_context_length": 2048,
             "max_length": max_tokens_to_generate,
             "temperature": temperature,
@@ -158,7 +161,7 @@ async def create_prompt(message, author, character):
     elif api_selection == "llama-cpp":
         data = {
             "prompt": text,
-            "stop": [author+":", "NightBot:", "\n\n"],
+            "stop": [author+":", character_card["name"]+":", "\n\n"],
             "temperature": temperature,
             "top_p": top_p,
             "top_k": top_k,
@@ -192,7 +195,7 @@ async def create_prompt(message, author, character):
             'truncation_length': 2048,
             'ban_eos_token': False,
             'skip_special_tokens': True,
-            'stopping_strings': ['\n' + author + ":", "\nNightBot:", '\nYou:' ]
+            'stopping_strings': ['\n' + author + ":", "\n" + character_card["name"] + ":", '\nYou:' ]
         }
     else:
         data = {
@@ -201,7 +204,7 @@ async def create_prompt(message, author, character):
             "prompt": text,
             "max_tokens": max_tokens_to_generate,
             "temperature": temperature,
-            "stop": [author+":", "NightBot:", "\n\n"]
+            "stop": [author+":", character_card["name"]+":", "\n\n"]
          }
             
 
@@ -222,10 +225,10 @@ async def clean_reply(data, author):
     # Clean the text and prepare it for posting
     dirty_message = dirty_message.strip()
     clean_message = dirty_message.replace(author + ":","")
-    clean_message = clean_message.replace("\n\nNightBot:", "")
+    clean_message = clean_message.replace("\n\n" + character_card["name"] + ":", "")
 
     # Add message to user's history
-    await add_to_message_history("NightBot", clean_message, author)
+    await add_to_message_history(character_card["name"], clean_message, author)
 
     # Return nice and clean message
     return clean_message
@@ -324,7 +327,7 @@ async def on_ready():
    
 @client.event
 async def on_message(message):
-    
+
     # Check to see the bot should reply
     if should_bot_reply(message) == True:
         await message.add_reaction('🆗')
@@ -341,6 +344,10 @@ async def on_message(message):
         # Add request to a queue to process
         queue_item = [data, message]
         queue_to_process.put_nowait(queue_item)
+        
+        p = subprocess.Popen(["powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1"], stdout=subprocess.PIPE)
+        data = p.communicate()[0]
+        await client.change_presence(status=discord.Status.online, activity=discord.Game(data))
 
 # Slash command to update the bot's personality
 personality = app_commands.Group(name="personality", description="View or change the bot's personality.")
@@ -409,7 +416,8 @@ async def view_history(interaction):
     except FileNotFoundError:
         await interaction.response.send_message("You have no history to display.")
     except Exception as e:
-        await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
+        print(e)
+        await interaction.response.send_message("Message history is more than 2000 characters and can't be printed.")
 
 # Slash commands for character card presets (if not interested in manually updating) 
 character = app_commands.Group(name="character-cards", description="View or changs the bot's current character card, including name and image.")
@@ -450,6 +458,10 @@ async def character_select_callback(interaction):
     character_card["instructions"] = character["instructions"]
     character_card["image"] = character["image"]
     
-    await interaction.response.send_message("Character personality has been adjusted. Thank you for your patience.")
+    response = requests.get(character_card["image"])
+    data = response.content
+    await client.user.edit(username=character_card["name"], avatar=data)
+    
+    await interaction.response.send_message("Bot personality has been adjusted. Thank you for your patience.")
      
 client.run(discord_api_key)
