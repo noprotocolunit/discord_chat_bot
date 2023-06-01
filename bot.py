@@ -262,6 +262,7 @@ async def send_queue():
     while True:
         reply = await queue_to_send.get()
         answer = await clean_reply(reply[0], str(reply[1].author.name))
+        await reply[1].add_reaction('🟩')
         await reply[1].add_reaction('✅')
         await reply[1].channel.send(answer, reference=reply[1])   
         queue_to_send.task_done()
