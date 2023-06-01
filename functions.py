@@ -32,3 +32,14 @@ def get_character_card_list(directory):
 
     # Return either the list of files or a blank list.
     return files
+
+# Clean the input provided by the user to the bot!
+def clean_user_message(user_input):
+
+    # Remove the bot's tag from the input since it's not needed.
+    user_input = user_input.replace("<@1080950961268342874>","")
+    
+    # Remove any spaces before and after the text.
+    user_input = user_input.strip()
+    
+    return user_input
