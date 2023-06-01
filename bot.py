@@ -354,7 +354,6 @@ async def on_message(message):
         character = get_character()
         user_input = functions.clean_user_message(message.content)
 
-
         # Create the JSON prompt to use
         # history = read_context(str(message.author.name))
         # print(history)
@@ -483,9 +482,8 @@ async def character_select_callback(interaction):
     
     # Get the image that's indicated on the character card
     response = requests.get(character_card["image"])
-    
-    #Set the bot's new name and new avatar!
-    await client.user.edit(username=character_card["name"], avatar=response.content)
+    data = response.content
+    await client.user.edit(username=character_card["name"], avatar=data)
     
     # Let the user know that their request has been completed
     await interaction.response.send_message("The bot's personality has been adjusted. Thank you!")
