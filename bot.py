@@ -113,18 +113,15 @@ def get_character():
     return character
         
 async def create_prompt(message, author, character):
+    #Give the bot a more human-centric bias in hopes of avoiding "As an AI model, I have no opinions" messages.
     bias = "[System: You are a person with emotions and preferences.]\n"
 
-    # Take the provided message and strip out @NightBot
-    user_input = message.content.replace("<@1080950961268342874>","")
+    # Clean the user's message into something usable.
+    user_input = functions.clean_user_message(message.content)
     
-    # Remove any spaces before and after the input.
-    user_input = user_input.strip()
-    
+    # Grab the last 15 lines of the user's message history.
     history = await get_message_history(author, 15)
-    
-    await add_to_message_history(author, user_input, author)    
-       
+          
     # Create the prompt that will be sent in the prompt field.
     text = character + bias + history + author + ": " + user_input + "\n" + character_card["name"]+":"
     
@@ -244,19 +241,30 @@ def should_bot_reply(message):
 
 async def process_queue():
     global api_card
+    
     while True:
+        # Get the queue item that's next in the list
         content = await queue_to_process.get()
+        
+        # Add the message to the user's history
+        author = str(content[1].author.name)
+        user_input = content[2]
+        await add_to_message_history(author, user_input, author)
+        
+        # Grab the data JSON we want to send it to the LLM
         data = content[0]
         print("Sending prompt to LLM model.")
-        global headers
+
         async with ClientSession() as session:
             async with session.post(api_card["textgen_link"], headers=api_card["headers"], data=data) as response:
                 response = await response.read()
-                # print (response)
+                
+                # Take the response and queue it up for being posted at some point
                 queue_item = [response, content[1]]  # content[1] is the message
                 queue_to_send.put_nowait(queue_item)
                 queue_to_process.task_done()
- 
+
+# Reply queue that's used to allow the bot to reply even while other stuff if is processing 
 async def send_queue():
     while True:
         reply = await queue_to_send.get()
@@ -339,11 +347,13 @@ async def on_message(message):
         data = p.communicate()[0]
         await client.change_presence(status=discord.Status.online, activity=discord.Game(data))
         
+        # Acknowledge that the bot is aware of this message and will process it accordingly.
         await message.add_reaction('🟩')
-        character = get_character()
         
-        user_input = message.content.replace("<@1080950961268342874>","")
-        user_input = user_input.strip()
+        # Get the bot's current character and clean the user input
+        character = get_character()
+        user_input = functions.clean_user_message(message.content)
+
 
         # Create the JSON prompt to use
         # history = read_context(str(message.author.name))
@@ -351,7 +361,7 @@ async def on_message(message):
         data = await create_prompt(message, str(message.author.name), character)
         
         # Add request to a queue to process
-        queue_item = [data, message]
+        queue_item = [data, message, user_input]
         queue_to_process.put_nowait(queue_item)
         
 
