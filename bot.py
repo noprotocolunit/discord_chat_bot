@@ -27,7 +27,7 @@ queue_to_send = asyncio.Queue()
 
 # API Keys and Information
 # Your API keys and tokens go here. Do not commit with these in place!
-                                                             
+
 
 # Character Card (current character personality)
 character_card = {
@@ -38,11 +38,13 @@ character_card = {
     "image": "https://example.com/image.png"
 }
 
-# API Variables
-api_selection = "textgen-ui" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
-api_model = ""
-api_text_generation = ""
-api_headers = ""
+# Global card for API information. Used with use_api_backend.
+api_card = {
+    "name": "textgen-ui" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
+    "model_link": ""
+    "textgen_link": ""
+    "headers": {}
+}
 
 # Generation Parameters
 max_tokens_to_generate = 100
@@ -57,42 +59,39 @@ mirostat_tau = 5.0
 mirostat_eta = 0.1 # mirostat learning rate
 
 def use_api_backend():
-    global api_selection
-    global api_model
-    global api_headers
-    global api_text_generation
-    
-    if api_selection == "llama-cpp-python":
+    global api_card
+
+    if api_card["name"] == "llama-cpp-python":
         # LLaMA-CPP-Python
-        api_model = "http://localhost:8000/v1/models"
-        api_text_generation = "http://localhost:8000/v1/completions"
-        api_headers = {
+        api_card["model_link"] = "http://localhost:8000/v1/models"
+        api_card["textgen_link"] = "http://localhost:8000/v1/completions"
+        api_card["headers"] = {
             "Accept": "application/json",
             "Content-Type": "application/json"
             }
-    elif api_selection == "kobold-cpp":
+    elif api_card["name"] == "kobold-cpp":
         # Kobold-CPP
-        api_model = "http://localhost:5001/api/v1/model"
-        api_text_generation = "http://localhost:5001/api/v1/generate"
-        api_headers = ""
-    elif api_selection == "llama-cpp":
+        api_card["model_link"] = "http://localhost:5001/api/v1/model"
+        api_card["textgen_link"] = "http://localhost:5001/api/v1/generate"
+        api_card["headers"] = ""
+    elif api_card["name"] == "llama-cpp":
         # LLaMA CPP Server
-        api_model = "http://localhost:8080/"
-        api_text_generation = "http://localhost:8080/completion/"
-        api_headers = ""
-    elif api_selection == "textgen-ui":
+        api_card["model_link"] = "http://localhost:8080/"
+        api_card["textgen_link"] = "http://localhost:8080/completion/"
+        api_card["headers"] = ""
+    elif api_card["name"] == "textgen-ui":
         # TextGen Server
-        api_model = "http://192.168.1.50:5000/api/v1/model"
-        api_text_generation = "http://192.168.1.50:5000/api/v1/generate"
-        api_headers = {
+        api_card["model_link"] = "http://192.168.1.50:5000/api/v1/model"
+        api_card["textgen_link"] = "http://192.168.1.50:5000/api/v1/generate"
+        api_card["headers"] = {
             "Accept": "application/json",
             "Content-Type": "application/json"
             }
     else:
         # OpenAI API
-        api_model = "https://api.openai.com/v1/models"
-        api_text_generation = "https://api.openai.com/v1/completions"
-        api_headers = {
+        api_card["model_link"] = "https://api.openai.com/v1/models"
+        api_card["textgen_link"] = "https://api.openai.com/v1/completions"
+        api_card["headers"] = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "Authorization": "Bearer " + openai_api_key,
@@ -131,9 +130,9 @@ async def create_prompt(message, author, character):
     
     # Make me a JSON file
     
-    global api_selection
+    global api_card
     
-    if api_selection == "llama-cpp-python":
+    if api_card["name"] == "llama-cpp-python":
         data = {
             "prompt": text,
             "stop": [author+":", character_card["name"]+":", "\n\n"],
@@ -144,7 +143,7 @@ async def create_prompt(message, author, character):
             "top_k": top_k,
             "repeat_penalty": repeat_penalty
         }
-    elif api_selection == "kobold-cpp":
+    elif api_card["name"] == "kobold-cpp":
         data = {
             "prompt": text,
             "stop_sequence": [author+":", character_card["name"]+":", "\n\n"],
@@ -159,7 +158,7 @@ async def create_prompt(message, author, character):
             "mirostat_eta": mirostat_eta,
             "sampler_order": [5, 0, 2, 6, 3, 4, 1]
         }
-    elif api_selection == "llama-cpp":
+    elif api_card["name"] == "llama-cpp":
         data = {
             "prompt": text,
             "stop": [author+":", character_card["name"]+":", "\n\n"],
@@ -170,7 +169,7 @@ async def create_prompt(message, author, character):
             "n_keep": -1,
             "n_predict": max_tokens_to_generate
         }
-    elif api_selection == "textgen-ui":
+    elif api_card["name"] == "textgen-ui":
         data = {
             "prompt": text,
             'max_new_tokens': 400,
@@ -218,7 +217,7 @@ async def clean_reply(data, author):
     # Grab the text of the message
     message = json.loads(data)
 
-    if api_selection == "kobold-cpp" or api_selection == "textgen-ui":
+    if api_card["name"] == "kobold-cpp" or api_card["name"] == "textgen-ui":
         dirty_message = str(message['results'][0]['text'])
     else:
         dirty_message = str(message['choices'][0]['text'])
@@ -244,14 +243,14 @@ def should_bot_reply(message):
     return False
 
 async def process_queue():
-    global api_headers
+    global api_card
     while True:
         content = await queue_to_process.get()
         data = content[0]
         print("Sending prompt to LLM model.")
         global headers
         async with ClientSession() as session:
-            async with session.post(api_text_generation, headers=api_headers, data=data) as response:
+            async with session.post(api_card["textgen_link"], headers=api_card["headers"], data=data) as response:
                 response = await response.read()
                 # print (response)
                 queue_item = [response, content[1]]  # content[1] is the message
@@ -310,7 +309,7 @@ async def on_ready():
     
     # Attempt to connect to the Kobold CPP api and shutdown the bot if it's not up
     try: 
-        api_check = requests.get(api_model, headers=api_headers)
+        api_check = requests.get(api_card["model_link"], headers=api_card["headers"])
     except requests.exceptions.RequestException as e:
         print(f'LLM api is not currently up. Shutting down the bot.')
         await client.close()
