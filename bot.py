@@ -477,6 +477,6 @@ async def character_select_callback(interaction):
     await client.user.edit(username=character_card["name"], avatar=response.content)
     
     # Let the user know that their request has been completed
-    await interaction.response.send_message("The bot's personality has been adjusted.")
+    await interaction.response.send_message("The bot's personality has been adjusted. Thank you!")
      
 client.run(discord_api_key)
