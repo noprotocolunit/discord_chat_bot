@@ -262,6 +262,7 @@ async def send_queue():
     while True:
         reply = await queue_to_send.get()
         answer = await clean_reply(reply[0], str(reply[1].author.name))
+        await reply[1].add_reaction('✅')
         await reply[1].channel.send(answer, reference=reply[1])   
         queue_to_send.task_done()
 
@@ -336,9 +337,9 @@ async def on_message(message):
         # Comment these lines out if you're not me.
         p = subprocess.Popen(["powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1"], stdout=subprocess.PIPE)
         data = p.communicate()[0]
-        await client.change_presence(status=discord.Status.online, activity=discord.Game(f'data))
+        await client.change_presence(status=discord.Status.online, activity=discord.Game(data))
         
-        await message.add_reaction('🆗')
+        await message.add_reaction('🟩')
         character = get_character()
         
         user_input = message.content.replace("<@1080950961268342874>","")
