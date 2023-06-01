@@ -47,16 +47,18 @@ api_card = {
 }
 
 # Generation Parameters
-max_tokens_to_generate = 100
-max_tokens_to_process = 2048
-temperature = 0.7
-top_p = 0.75
-top_k = 40
-generation_attempts = 1
-repeat_penalty = 1.18
-mirostat_mode = 2 # For APIs that support this, it will negate temperature and top_k/top_p
-mirostat_tau = 5.0
-mirostat_eta = 0.1 # mirostat learning rate
+parameters = {
+    "max_gen": 400,
+    "max_process": 2048,
+    "temp": 0.7,
+    "top_p": 0.75,
+    "top_k": 40,
+    "attempts": 1,
+    "rep_pen": 1.18,
+    "mirostat": 2, # For APIs that support this, it will negate temperature and top_k/top_p
+    "m_tau": 5.0,
+    "m_eta": 0.2 # mirostat learning rate
+}
 
 def use_api_backend():
     global api_card
@@ -128,68 +130,69 @@ async def create_prompt(message, author, character):
     # Make me a JSON file
     
     global api_card
+    global parameters
     
     if api_card["name"] == "llama-cpp-python":
         data = {
             "prompt": text,
             "stop": [author+":", character_card["name"]+":", "\n\n"],
-            "max_context_length": 2048,
-            "max_tokens": max_tokens_to_generate,
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
-            "repeat_penalty": repeat_penalty
+            "max_context_length": parameters["max_process"],
+            "max_tokens": parameters["max_gen"],
+            "temperature": parameters["temp"],
+            "top_p": parameters["top_p"],
+            "top_k": parameters["top_k"],
+            "repeat_penalty": parameters["rep_pen"]
         }
     elif api_card["name"] == "kobold-cpp":
         data = {
             "prompt": text,
             "stop_sequence": [author+":", character_card["name"]+":", "\n\n"],
-            "max_context_length": 2048,
-            "max_length": max_tokens_to_generate,
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
-            "rep_pen": repeat_penalty,
-            "mirostat_mode": mirostat_mode,
-            "mirostat_tau": mirostat_tau,
-            "mirostat_eta": mirostat_eta,
+            "max_context_length": parameters["max_process"],
+            "max_length": parameters["max_gen"],
+            "temperature": parameters["temp"],
+            "top_p": parameters["top_p"],
+            "top_k": parameters["top_k"],
+            "rep_pen": parameters["rep_pen"],
+            "mirostat_mode": parameters["mirostat"],
+            "mirostat_tau": parameters["m_tau"],
+            "mirostat_eta": parameters["m_eta"],
             "sampler_order": [5, 0, 2, 6, 3, 4, 1]
         }
     elif api_card["name"] == "llama-cpp":
         data = {
             "prompt": text,
             "stop": [author+":", character_card["name"]+":", "\n\n"],
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
+            "temperature": parameters["temp"],
+            "top_p": parameters["top_p"],
+            "top_k": parameters["top_k"],
             "interactive": True,
             "n_keep": -1,
-            "n_predict": max_tokens_to_generate
+            "n_predict": parameters["max_gen"]
         }
     elif api_card["name"] == "textgen-ui":
         data = {
             "prompt": text,
-            'max_new_tokens': 400,
+            'max_new_tokens': parameters["max_gen"],
             'do_sample': True,
-            'temperature': temperature,
-            'top_p': top_p,
+            'temperature': parameters["temp"],
+            'top_p': parameters["top_p"],
             'typical_p': 1,
             'epsilon_cutoff': 0,  # In units of 1e-4
             'eta_cutoff': 0,  # In units of 1e-4
-            'repetition_penalty': repeat_penalty,
-            'top_k': top_k,
+            'repetition_penalty': parameters["rep_pen"],
+            'top_k': parameters["top_k"],
             'min_length': 0,
             'no_repeat_ngram_size': 0,
             'num_beams': 1,
             'penalty_alpha': 0,
             'length_penalty': 1,
             'early_stopping': False,
-            'mirostat_mode': 0,
-            'mirostat_tau': 5,
-            'mirostat_eta': 0.1,
+            'mirostat_mode': parameters["mirostat"],
+            'mirostat_tau': parameters["m_tau"],
+            'mirostat_eta': parameters["m_eta"],
             'seed': -1,
             'add_bos_token': True,
-            'truncation_length': 2048,
+            'truncation_length': parameters["max_process"],
             'ban_eos_token': False,
             'skip_special_tokens': True,
             'stopping_strings': ['\n' + author + ":", "\n" + character_card["name"] + ":", '\nYou:' ]
@@ -199,8 +202,8 @@ async def create_prompt(message, author, character):
             # "model": "gpt-3.5-turbo",
             "model": "text-davinci-003",
             "prompt": text,
-            "max_tokens": max_tokens_to_generate,
-            "temperature": temperature,
+            "max_tokens": parameters["max_gen"],
+            "temperature": parameters["temp"],
             "stop": [author+":", character_card["name"]+":", "\n\n"]
          }
             
