@@ -6,6 +6,7 @@ import asyncio
 import httpx
 import random
 import functions
+import subprocess, sys
 
 from aiohttp import ClientSession
 from discord.ext import commands
@@ -25,6 +26,8 @@ queue_to_process = asyncio.Queue()
 queue_to_send = asyncio.Queue()
 
 # API Keys and Information
+# Your API keys and tokens go here. Do not commit with these in place!
+
 
 # Character Card (current character personality)
 character_card = {
@@ -35,61 +38,62 @@ character_card = {
     "image": "https://example.com/image.png"
 }
 
-# API Variables
-api_selection = "textgen-ui" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
-api_model = ""
-api_text_generation = ""
-api_headers = ""
+# Global card for API information. Used with use_api_backend.
+api_card = {
+    "name": "textgen-ui", # llama-cpp-python, kobold-cpp, llama-cpp, open-api
+    "model_link": "",
+    "textgen_link": "",
+    "headers": {}
+}
 
 # Generation Parameters
-max_tokens_to_generate = 100
-max_tokens_to_process = 2048
-temperature = 0.7
-top_p = 0.75
-top_k = 40
-generation_attempts = 1
-repeat_penalty = 1.18
-mirostat_mode = 2 # For APIs that support this, it will negate temperature and top_k/top_p
-mirostat_tau = 5.0
-mirostat_eta = 0.1 # mirostat learning rate
+parameters = {
+    "max_gen": 400,
+    "max_process": 2048,
+    "temp": 0.7,
+    "top_p": 0.75,
+    "top_k": 40,
+    "attempts": 1,
+    "rep_pen": 1.18,
+    "mirostat": 2, # For APIs that support this, it will negate temperature and top_k/top_p
+    "m_tau": 5.0,
+    "m_eta": 0.2 # mirostat learning rate
+}
 
 def use_api_backend():
-    global api_selection
-    global api_model
-    global api_headers
-    global api_text_generation
-    
-    if api_selection == "llama-cpp-python":
+    global api_card
+
+    if api_card["name"] == "llama-cpp-python":
         # LLaMA-CPP-Python
-        api_model = "http://localhost:8000/v1/models"
-        api_text_generation = "http://localhost:8000/v1/completions"
-        api_headers = {
+        api_card["model_link"] = "http://localhost:8000/v1/models"
+        api_card["textgen_link"] = "http://localhost:8000/v1/completions"
+        api_card["headers"] = {
             "Accept": "application/json",
             "Content-Type": "application/json"
             }
-    elif api_selection == "kobold-cpp":
+    elif api_card["name"] == "kobold-cpp":
         # Kobold-CPP
-        api_model = "http://localhost:5001/api/v1/model"
-        api_text_generation = "http://localhost:5001/api/v1/generate"
-        api_headers = ""
-    elif api_selection == "llama-cpp":
+        api_card["model_link"] = "http://localhost:5001/api/v1/model"
+        api_card["textgen_link"] = "http://localhost:5001/api/v1/generate"
+        api_card["headers"] = ""
+    elif api_card["name"] == "llama-cpp":
         # LLaMA CPP Server
-        api_model = "http://localhost:8080/"
-        api_text_generation = "http://localhost:8080/completion/"
-        api_headers = ""
-    elif api_selection == "textgen-ui":
+        api_card["model_link"] = "http://localhost:8080/"
+        api_card["textgen_link"] = "http://localhost:8080/completion/"
+        api_card["headers"] = ""
+    elif api_card["name"] == "textgen-ui":
         # TextGen Server
-        api_model = "http://192.168.1.50:5000/api/v1/model"
-        api_text_generation = "http://192.168.1.50:5000/api/v1/generate"
-        api_headers = {
+        api_card["model_link"] = "http://192.168.1.50:5000/api/v1/model"
+        api_card["textgen_link"] = "http://192.168.1.50:5000/api/v1/generate"
+        api_card["headers"] = {
             "Accept": "application/json",
             "Content-Type": "application/json"
             }
     else:
         # OpenAI API
-        api_model = "https://api.openai.com/v1/models"
-        api_text_generation = "https://api.openai.com/v1/completions"
-        api_headers = {
+        api_card["model_link"] = "https://api.openai.com/v1/models"
+        api_card["textgen_link"] = "https://api.openai.com/v1/completions"
+        api_card["headers"] = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "Authorization": "Bearer " + openai_api_key,
@@ -106,102 +110,101 @@ def get_character():
     character = "Your name is " + character_card["name"] + ". "
     
     # Your name is <name>. You are a <persona>.
-    character = character + "You are a " + character_card["persona"] + ". " + character_card["instructions"] + character_card["example_text"]
+    character = character + "You are a " + character_card["persona"] + ". " + character_card["instructions"] + ' '.join(character_card['example_text'])
 
     return character
         
 async def create_prompt(message, author, character):
+    #Give the bot a more human-centric bias in hopes of avoiding "As an AI model, I have no opinions" messages.
+    bias = "[System: You are a person with emotions and preferences.]\n"
 
-    # Take the provided message and strip out @NightBot
-    user_input = message.content.replace("<@1080950961268342874>","")
+    # Clean the user's message into something usable.
+    user_input = functions.clean_user_message(message.content)
     
-    # Remove any spaces before and after the input.
-    user_input = user_input.strip()
-    
+    # Grab the last 15 lines of the user's message history.
     history = await get_message_history(author, 15)
-    
-    await add_to_message_history(author, user_input, author)    
-       
+          
     # Create the prompt that will be sent in the prompt field.
-    text = character + history + author + ": " + user_input + "\nNightBot: "
+    text = character + bias + history + author + ": " + user_input + "\n" + character_card["name"]+":"
     
     # Make me a JSON file
     
-    global api_selection
+    global api_card
+    global parameters
     
-    if api_selection == "llama-cpp-python":
+    if api_card["name"] == "llama-cpp-python":
         data = {
             "prompt": text,
-            "stop": [author+":", "NightBot:", "\n\n"],
-            "max_context_length": 2048,
-            "max_tokens": max_tokens_to_generate,
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
-            "repeat_penalty": repeat_penalty
+            "stop": [author+":", character_card["name"]+":", "\n\n"],
+            "max_context_length": parameters["max_process"],
+            "max_tokens": parameters["max_gen"],
+            "temperature": parameters["temp"],
+            "top_p": parameters["top_p"],
+            "top_k": parameters["top_k"],
+            "repeat_penalty": parameters["rep_pen"]
         }
-    elif api_selection == "kobold-cpp":
+    elif api_card["name"] == "kobold-cpp":
         data = {
             "prompt": text,
-            "stop_sequence": [author+":", "NightBot:", "\n\n"],
-            "max_context_length": 2048,
-            "max_length": max_tokens_to_generate,
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
-            "rep_pen": repeat_penalty,
-            "mirostat_mode": mirostat_mode,
-            "mirostat_tau": mirostat_tau,
-            "mirostat_eta": mirostat_eta,
+            "stop_sequence": [author+":", character_card["name"]+":", "\n\n"],
+            "max_context_length": parameters["max_process"],
+            "max_length": parameters["max_gen"],
+            "temperature": parameters["temp"],
+            "top_p": parameters["top_p"],
+            "top_k": parameters["top_k"],
+            "rep_pen": parameters["rep_pen"],
+            "mirostat_mode": parameters["mirostat"],
+            "mirostat_tau": parameters["m_tau"],
+            "mirostat_eta": parameters["m_eta"],
             "sampler_order": [5, 0, 2, 6, 3, 4, 1]
         }
-    elif api_selection == "llama-cpp":
+    elif api_card["name"] == "llama-cpp":
         data = {
             "prompt": text,
-            "stop": [author+":", "NightBot:", "\n\n"],
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
+            "stop": [author+":", character_card["name"]+":", "\n\n"],
+            "temperature": parameters["temp"],
+            "top_p": parameters["top_p"],
+            "top_k": parameters["top_k"],
             "interactive": True,
             "n_keep": -1,
-            "n_predict": max_tokens_to_generate
+            "n_predict": parameters["max_gen"]
         }
-    elif api_selection == "textgen-ui":
+    elif api_card["name"] == "textgen-ui":
         data = {
             "prompt": text,
-            'max_new_tokens': 400,
+            'max_new_tokens': parameters["max_gen"],
             'do_sample': True,
-            'temperature': temperature,
-            'top_p': top_p,
+            'temperature': parameters["temp"],
+            'top_p': parameters["top_p"],
             'typical_p': 1,
             'epsilon_cutoff': 0,  # In units of 1e-4
             'eta_cutoff': 0,  # In units of 1e-4
-            'repetition_penalty': repeat_penalty,
-            'top_k': top_k,
+            'repetition_penalty': parameters["rep_pen"],
+            'top_k': parameters["top_k"],
             'min_length': 0,
             'no_repeat_ngram_size': 0,
             'num_beams': 1,
             'penalty_alpha': 0,
             'length_penalty': 1,
             'early_stopping': False,
-            'mirostat_mode': 0,
-            'mirostat_tau': 5,
-            'mirostat_eta': 0.1,
+            'mirostat_mode': parameters["mirostat"],
+            'mirostat_tau': parameters["m_tau"],
+            'mirostat_eta': parameters["m_eta"],
             'seed': -1,
             'add_bos_token': True,
-            'truncation_length': 2048,
+            'truncation_length': parameters["max_process"],
             'ban_eos_token': False,
             'skip_special_tokens': True,
-            'stopping_strings': ['\n' + author + ":", "\nNightBot:", '\nYou:' ]
+            'stopping_strings': ['\n' + author + ":", "\n" + character_card["name"] + ":", '\nYou:' ]
         }
     else:
         data = {
             # "model": "gpt-3.5-turbo",
             "model": "text-davinci-003",
             "prompt": text,
-            "max_tokens": max_tokens_to_generate,
-            "temperature": temperature,
-            "stop": [author+":", "NightBot:", "\n\n"]
+            "max_tokens": parameters["max_gen"],
+            "temperature": parameters["temp"],
+            "stop": [author+":", character_card["name"]+":", "\n\n"]
          }
             
 
@@ -214,7 +217,7 @@ async def clean_reply(data, author):
     # Grab the text of the message
     message = json.loads(data)
 
-    if api_selection == "kobold-cpp" or api_selection == "textgen-ui":
+    if api_card["name"] == "kobold-cpp" or api_card["name"] == "textgen-ui":
         dirty_message = str(message['results'][0]['text'])
     else:
         dirty_message = str(message['choices'][0]['text'])
@@ -222,10 +225,10 @@ async def clean_reply(data, author):
     # Clean the text and prepare it for posting
     dirty_message = dirty_message.strip()
     clean_message = dirty_message.replace(author + ":","")
-    clean_message = clean_message.replace("\n\nNightBot:", "")
+    clean_message = clean_message.replace("\n\n" + character_card["name"] + ":", "")
 
     # Add message to user's history
-    await add_to_message_history("NightBot", clean_message, author)
+    await add_to_message_history(character_card["name"], clean_message, author)
 
     # Return nice and clean message
     return clean_message
@@ -240,24 +243,37 @@ def should_bot_reply(message):
     return False
 
 async def process_queue():
-    global api_headers
+    global api_card
+    
     while True:
+        # Get the queue item that's next in the list
         content = await queue_to_process.get()
+        
+        # Add the message to the user's history
+        author = str(content[1].author.name)
+        user_input = content[2]
+        await add_to_message_history(author, user_input, author)
+        
+        # Grab the data JSON we want to send it to the LLM
         data = content[0]
         print("Sending prompt to LLM model.")
-        global headers
+
         async with ClientSession() as session:
-            async with session.post(api_text_generation, headers=api_headers, data=data) as response:
+            async with session.post(api_card["textgen_link"], headers=api_card["headers"], data=data) as response:
                 response = await response.read()
-                # print (response)
+                
+                # Take the response and queue it up for being posted at some point
                 queue_item = [response, content[1]]  # content[1] is the message
                 queue_to_send.put_nowait(queue_item)
                 queue_to_process.task_done()
- 
+
+# Reply queue that's used to allow the bot to reply even while other stuff if is processing 
 async def send_queue():
     while True:
         reply = await queue_to_send.get()
         answer = await clean_reply(reply[0], str(reply[1].author.name))
+        await reply[1].remove_reaction('🟩', client.user)
+        await reply[1].add_reaction('✅')
         await reply[1].channel.send(answer, reference=reply[1])   
         queue_to_send.task_done()
 
@@ -304,7 +320,7 @@ async def on_ready():
     
     # Attempt to connect to the Kobold CPP api and shutdown the bot if it's not up
     try: 
-        api_check = requests.get(api_model, headers=api_headers)
+        api_check = requests.get(api_card["model_link"], headers=api_card["headers"])
     except requests.exceptions.RequestException as e:
         print(f'LLM api is not currently up. Shutting down the bot.')
         await client.close()
@@ -324,14 +340,22 @@ async def on_ready():
    
 @client.event
 async def on_message(message):
-    
+
     # Check to see the bot should reply
     if should_bot_reply(message) == True:
-        await message.add_reaction('🆗')
-        character = get_character()
+
+        # These are relevant to me only -- this is how I see the temperature of the card where the LLM is running
+        # Comment these lines out if you're not me.
+        p = subprocess.Popen(["powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1"], stdout=subprocess.PIPE)
+        data = p.communicate()[0]
+        await client.change_presence(status=discord.Status.online, activity=discord.Game(data))
         
-        user_input = message.content.replace("<@1080950961268342874>","")
-        user_input = user_input.strip()
+        # Acknowledge that the bot is aware of this message and will process it accordingly.
+        await message.add_reaction('🟩')
+        
+        # Get the bot's current character and clean the user input
+        character = get_character()
+        user_input = functions.clean_user_message(message.content)
 
         # Create the JSON prompt to use
         # history = read_context(str(message.author.name))
@@ -339,8 +363,9 @@ async def on_message(message):
         data = await create_prompt(message, str(message.author.name), character)
         
         # Add request to a queue to process
-        queue_item = [data, message]
+        queue_item = [data, message, user_input]
         queue_to_process.put_nowait(queue_item)
+        
 
 # Slash command to update the bot's personality
 personality = app_commands.Group(name="personality", description="View or change the bot's personality.")
@@ -390,8 +415,9 @@ async def reset_history(interaction):
     except FileNotFoundError:
          await interaction.response.send_message("There was no history to delete.")
     except PermissionError:
-        await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
+        await interaction.response.send_message("The bot doesn't have permission to reset your history. Let bot owner know.")
     except Exception as e:
+        print(e)
         await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
 
 @history.command(name="view", description=" View the last 20 lines of your conversation history.")
@@ -409,7 +435,8 @@ async def view_history(interaction):
     except FileNotFoundError:
         await interaction.response.send_message("You have no history to display.")
     except Exception as e:
-        await interaction.response.send_message("Something has gone wrong. Let bot owner know.")
+        print(e)
+        await interaction.response.send_message("Message history is more than 2000 characters and can't be displayed.")
 
 # Slash commands for character card presets (if not interested in manually updating) 
 character = app_commands.Group(name="character-cards", description="View or changs the bot's current character card, including name and image.")
@@ -436,12 +463,18 @@ async def change_character(interaction):
     view = discord.ui.View()
     view.add_item(select)
 
+    # Show the dropdown menu to the user
     await interaction.response.send_message('Select a character card', view=view)
 
 async def character_select_callback(interaction):
-    info = interaction.data.get("values", [])[0]
-    character = functions.get_character_card(info)
     
+    # Get the value selected by the user via the dropdown.
+    selection = interaction.data.get("values", [])[0]
+    
+    # Get the JSON file associated with that selection
+    character = functions.get_character_card(selection)
+    
+    # Adjust the character card for the bot to match what the user selected.
     global character_card
     
     character_card["name"] = character["name"]
@@ -450,6 +483,12 @@ async def character_select_callback(interaction):
     character_card["instructions"] = character["instructions"]
     character_card["image"] = character["image"]
     
-    await interaction.response.send_message("Character personality has been adjusted. Thank you for your patience.")
+    # Get the image that's indicated on the character card
+    response = requests.get(character_card["image"])
+    data = response.content
+    await client.user.edit(username=character_card["name"], avatar=data)
+    
+    # Let the user know that their request has been completed
+    await interaction.response.send_message("The bot's personality has been adjusted. Thank you!")
      
 client.run(discord_api_key)
