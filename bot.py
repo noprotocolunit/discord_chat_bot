@@ -40,9 +40,9 @@ character_card = {
 
 # Global card for API information. Used with use_api_backend.
 api_card = {
-    "name": "textgen-ui" # llama-cpp-python, kobold-cpp, llama-cpp, open-api
-    "model_link": ""
-    "textgen_link": ""
+    "name": "textgen-ui", # llama-cpp-python, kobold-cpp, llama-cpp, open-api
+    "model_link": "",
+    "textgen_link": "",
     "headers": {}
 }
 
