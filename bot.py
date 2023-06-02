@@ -6,7 +6,7 @@ import asyncio
 import httpx
 import random
 import functions
-import subprocess, sys
+import datetime
 
 from aiohttp import ClientSession
 from discord.ext import commands
@@ -59,6 +59,9 @@ parameters = {
     "m_tau": 5.0,
     "m_eta": 0.2 # mirostat learning rate
 }
+
+# Time when the status was last updated
+status_last_update = datetime.datetime.now()
 
 def use_api_backend():
     global api_card
@@ -327,10 +330,6 @@ async def on_ready():
     
     #If we got there, then the API is up and here is the status of the model.
     print(api_check)
-
-    data = await functions.check_bot_temps()
-    activity = discord.Activity(type=discord.ActivityType.watching, name=data)
-    await client.change_presence(activity=activity)
     
     #AsynchIO Tasks
     asyncio.create_task(process_queue())
@@ -341,19 +340,29 @@ async def on_ready():
     client.tree.add_command(history)
     client.tree.add_command(character)
     await client.tree.sync()
+    
+    data = await functions.check_bot_temps()
+    activity = discord.Activity(type=discord.ActivityType.watching, name=data)
+    await client.change_presence(activity=activity)
    
 @client.event
 async def on_message(message):
 
-    # Check to see the bot should reply
-    if should_bot_reply(message) == True:
+    # These are relevant to me only -- this is how I see the temperature of the card where the LLM is running
+    # Comment these lines out if you're not me.
 
-        # These are relevant to me only -- this is how I see the temperature of the card where the LLM is running
-        # Comment these lines out if you're not me.
+    global status_last_update
+    now = datetime.datetime.now()
+    
+    if now - status_last_update > datetime.timedelta(seconds=30):
         data = await functions.check_bot_temps()
         activity = discord.Activity(type=discord.ActivityType.watching, name=data)
         await client.change_presence(activity=activity)
-        
+        status_last_update = datetime.datetime.now()
+
+    # Check to see the bot should reply
+    if should_bot_reply(message) == True:
+
         # Acknowledge that the bot is aware of this message and will process it accordingly.
         await message.add_reaction('🟩')
         
