@@ -477,9 +477,11 @@ async def change_character(interaction):
     view.add_item(select)
 
     # Show the dropdown menu to the user
-    await interaction.response.send_message('Select a character card', view=view)
+    await interaction.response.send_message('Select a character card', view=view, ephemeral=True)
 
 async def character_select_callback(interaction):
+    
+    await interaction.response.defer()
     
     # Get the value selected by the user via the dropdown.
     selection = interaction.data.get("values", [])[0]
@@ -496,12 +498,16 @@ async def character_select_callback(interaction):
     character_card["instructions"] = character["instructions"]
     character_card["image"] = character["image"]
     
-    # Get the image that's indicated on the character card
+    # Change bot's nickname without changing its name
+    guild = interaction.guild
+    me = guild.me
+    await me.edit(nick=character_card["name"])
+    
     response = requests.get(character_card["image"])
     data = response.content
-    await client.user.edit(username=character_card["name"], avatar=data)
+    await client.user.edit(avatar=data)
     
     # Let the user know that their request has been completed
-    await interaction.response.send_message("The bot's personality has been adjusted. Thank you!")
+    await interaction.followup.send(interaction.user.name "updated the bot's personality.")
      
 client.run(discord_api_key)
