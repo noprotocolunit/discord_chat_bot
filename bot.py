@@ -327,6 +327,10 @@ async def on_ready():
     
     #If we got there, then the API is up and here is the status of the model.
     print(api_check)
+
+    data = await functions.check_bot_temps()
+    activity = discord.Activity(type=discord.ActivityType.watching, name=data)
+    await client.change_presence(activity=activity)
     
     #AsynchIO Tasks
     asyncio.create_task(process_queue())
@@ -346,9 +350,9 @@ async def on_message(message):
 
         # These are relevant to me only -- this is how I see the temperature of the card where the LLM is running
         # Comment these lines out if you're not me.
-        p = subprocess.Popen(["powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1"], stdout=subprocess.PIPE)
-        data = p.communicate()[0]
-        await client.change_presence(status=discord.Status.online, activity=discord.Game(data))
+        data = await functions.check_bot_temps()
+        activity = discord.Activity(type=discord.ActivityType.watching, name=data)
+        await client.change_presence(activity=activity)
         
         # Acknowledge that the bot is aware of this message and will process it accordingly.
         await message.add_reaction('🟩')
