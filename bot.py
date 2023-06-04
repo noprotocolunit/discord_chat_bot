@@ -28,7 +28,6 @@ queue_to_send = asyncio.Queue()
 # API Keys and Information
 # Your API keys and tokens go here. Do not commit with these in place!
 
-
 # Character Card (current character personality)
 character_card = {
     "name": "NightBot",
@@ -259,7 +258,7 @@ async def process_queue():
         
         # Grab the data JSON we want to send it to the LLM
         data = content[0]
-        print("Sending prompt to LLM model.")
+        print("Sending prompt from " + author + " to LLM model.")
 
         async with ClientSession() as session:
             async with session.post(api_card["textgen_link"], headers=api_card["headers"], data=data) as response:
@@ -277,6 +276,7 @@ async def send_queue():
         answer = await clean_reply(reply[0], str(reply[1].author.name))
         await reply[1].remove_reaction('🟩', client.user)
         await reply[1].add_reaction('✅')
+        print("Replying to " + reply[1].author.name + ".")
         await reply[1].channel.send(answer, reference=reply[1])   
         queue_to_send.task_done()
 
