@@ -59,6 +59,11 @@ parameters = {
     "m_eta": 0.2 # mirostat learning rate
 }
 
+stable_diffusion = {
+    "api_address": "http://192.168.1.50:7861/"
+}
+   
+
 # Time when the status was last updated
 status_last_update = datetime.datetime.now()
 
@@ -234,6 +239,26 @@ async def clean_reply(data, author):
 
     # Return nice and clean message
     return clean_message
+
+
+async def bot_behavior(message):
+
+    # If someone pings the bot, answer
+        # If someone pings the bot with "send me a picture" or "send me an image" answer & stable diffusion
+    # If someone DMs the bot, answer
+        # If someone pings the bot with "send me a picture" or "send me an image" answer & stable diffusion
+    # If I haven't spoken for 30 minutes, say something in the last channel where I was pinged (not DMs) with a pun or generated image
+    # If someone speaks in a channel, there will be a three percent chance of answering (only in chatbots and furbies)
+    # If I'm bored, ping someone with a message history
+    # If I have a reminder, pop off the reminder in DMs at selected time and date
+    # If someone asks me about the weather, look up weather at a given zip code/location
+    # If someone asks me about a wikipedia article, provide the first 300 words from the article's page
+    # Google wikipedia and add info to context before answering
+    # If someone asks for a random number, roll some dice
+    # If someone wants me to be chatty, change personality on the fly to chatterbox
+    # If someone asks for a meme, generate an image of a meme on the fly
+    # If playing a game or telling a story, add an image to the story
+    
  
 def should_bot_reply(message):
     if message.author == client.user:
