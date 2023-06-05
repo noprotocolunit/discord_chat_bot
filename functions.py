@@ -1,7 +1,7 @@
 import json
 import os
 import asyncio
-
+import base64
 
 def get_filename(directory, file, extension):
     return directory + "\\" + file + "." + extension
@@ -51,3 +51,21 @@ async def check_bot_temps():
     process = await asyncio.create_subprocess_exec("powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1", stdout=asyncio.subprocess.PIPE)
     output, _ = await process.communicate()
     return output.decode()
+
+# A function for separating images from text that returns both.    
+def separate_image_text(message)
+    
+    # Locates the image based on what's provided
+    img_start = message.find("<img")
+    img_end = message.find(">") + 1
+    
+    # If there's an image in there, separates it
+    if img_start != -1:
+        img_tag = message[img_start:img_end]
+        text = message[img_end:].strip()
+    else:
+        img_tag = None
+        text = message.strip()
+
+    print(text)
+    return img_tag, text
