@@ -1,5 +1,7 @@
 import json
 import os
+import asyncio
+
 
 def get_filename(directory, file, extension):
     return directory + "\\" + file + "." + extension
@@ -43,3 +45,9 @@ def clean_user_message(user_input):
     user_input = user_input.strip()
     
     return user_input
+
+# A function for checking bot's temperature (lterally, card temps)
+async def check_bot_temps():
+    process = await asyncio.create_subprocess_exec("powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1", stdout=asyncio.subprocess.PIPE)
+    output, _ = await process.communicate()
+    return output.decode()

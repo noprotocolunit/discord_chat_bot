@@ -6,7 +6,7 @@ import asyncio
 import httpx
 import random
 import functions
-import subprocess, sys
+import datetime
 
 from aiohttp import ClientSession
 from discord.ext import commands
@@ -27,7 +27,6 @@ queue_to_send = asyncio.Queue()
 
 # API Keys and Information
 # Your API keys and tokens go here. Do not commit with these in place!
-
 
 # Character Card (current character personality)
 character_card = {
@@ -59,6 +58,14 @@ parameters = {
     "m_tau": 5.0,
     "m_eta": 0.2 # mirostat learning rate
 }
+
+stable_diffusion = {
+    "api_address": "http://192.168.1.50:7861/"
+}
+   
+
+# Time when the status was last updated
+status_last_update = datetime.datetime.now()
 
 def use_api_backend():
     global api_card
@@ -232,6 +239,26 @@ async def clean_reply(data, author):
 
     # Return nice and clean message
     return clean_message
+
+
+async def bot_behavior(message):
+
+    # If someone pings the bot, answer
+        # If someone pings the bot with "send me a picture" or "send me an image" answer & stable diffusion
+    # If someone DMs the bot, answer
+        # If someone pings the bot with "send me a picture" or "send me an image" answer & stable diffusion
+    # If I haven't spoken for 30 minutes, say something in the last channel where I was pinged (not DMs) with a pun or generated image
+    # If someone speaks in a channel, there will be a three percent chance of answering (only in chatbots and furbies)
+    # If I'm bored, ping someone with a message history
+    # If I have a reminder, pop off the reminder in DMs at selected time and date
+    # If someone asks me about the weather, look up weather at a given zip code/location
+    # If someone asks me about a wikipedia article, provide the first 300 words from the article's page
+    # Google wikipedia and add info to context before answering
+    # If someone asks for a random number, roll some dice
+    # If someone wants me to be chatty, change personality on the fly to chatterbox
+    # If someone asks for a meme, generate an image of a meme on the fly
+    # If playing a game or telling a story, add an image to the story
+    
  
 def should_bot_reply(message):
     if message.author == client.user:
@@ -256,7 +283,7 @@ async def process_queue():
         
         # Grab the data JSON we want to send it to the LLM
         data = content[0]
-        print("Sending prompt to LLM model.")
+        print("Sending prompt from " + author + " to LLM model.")
 
         async with ClientSession() as session:
             async with session.post(api_card["textgen_link"], headers=api_card["headers"], data=data) as response:
@@ -274,6 +301,7 @@ async def send_queue():
         answer = await clean_reply(reply[0], str(reply[1].author.name))
         await reply[1].remove_reaction('🟩', client.user)
         await reply[1].add_reaction('✅')
+        print("Replying to " + reply[1].author.name + ".")
         await reply[1].channel.send(answer, reference=reply[1])   
         queue_to_send.task_done()
 
@@ -337,19 +365,29 @@ async def on_ready():
     client.tree.add_command(history)
     client.tree.add_command(character)
     await client.tree.sync()
+    
+    data = await functions.check_bot_temps()
+    activity = discord.Activity(type=discord.ActivityType.watching, name=data)
+    await client.change_presence(activity=activity)
    
 @client.event
 async def on_message(message):
 
+    # These are relevant to me only -- this is how I see the temperature of the card where the LLM is running
+    # Comment these lines out if you're not me.
+
+    global status_last_update
+    now = datetime.datetime.now()
+    
+    if now - status_last_update > datetime.timedelta(seconds=30):
+        data = await functions.check_bot_temps()
+        activity = discord.Activity(type=discord.ActivityType.watching, name=data)
+        await client.change_presence(activity=activity)
+        status_last_update = datetime.datetime.now()
+
     # Check to see the bot should reply
     if should_bot_reply(message) == True:
 
-        # These are relevant to me only -- this is how I see the temperature of the card where the LLM is running
-        # Comment these lines out if you're not me.
-        p = subprocess.Popen(["powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1"], stdout=subprocess.PIPE)
-        data = p.communicate()[0]
-        await client.change_presence(status=discord.Status.online, activity=discord.Game(data))
-        
         # Acknowledge that the bot is aware of this message and will process it accordingly.
         await message.add_reaction('🟩')
         
@@ -464,9 +502,11 @@ async def change_character(interaction):
     view.add_item(select)
 
     # Show the dropdown menu to the user
-    await interaction.response.send_message('Select a character card', view=view)
+    await interaction.response.send_message('Select a character card', view=view, ephemeral=True)
 
 async def character_select_callback(interaction):
+    
+    await interaction.response.defer()
     
     # Get the value selected by the user via the dropdown.
     selection = interaction.data.get("values", [])[0]
@@ -483,12 +523,16 @@ async def character_select_callback(interaction):
     character_card["instructions"] = character["instructions"]
     character_card["image"] = character["image"]
     
-    # Get the image that's indicated on the character card
+    # Change bot's nickname without changing its name
+    guild = interaction.guild
+    me = guild.me
+    await me.edit(nick=character_card["name"])
+    
     response = requests.get(character_card["image"])
     data = response.content
-    await client.user.edit(username=character_card["name"], avatar=data)
+    await client.user.edit(avatar=data)
     
     # Let the user know that their request has been completed
-    await interaction.response.send_message("The bot's personality has been adjusted. Thank you!")
+    await interaction.followup.send(interaction.user.name "updated the bot's personality.")
      
 client.run(discord_api_key)
