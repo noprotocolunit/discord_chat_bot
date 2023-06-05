@@ -223,7 +223,7 @@ async def clean_reply(data, author):
         dirty_message = str(message['results'][0]['text'])
     else:
         dirty_message = str(message['choices'][0]['text'])
-
+    
     # Clean the text and prepare it for posting
     dirty_message = dirty_message.strip()
     clean_message = dirty_message.replace(author + ":","")
@@ -273,15 +273,18 @@ async def process_queue():
 # Reply queue that's used to allow the bot to reply even while other stuff if is processing 
 async def send_queue():
     while True:
+    
+        # Grab the reply that will be sent
         reply = await queue_to_send.get()
-        data = functions.separate_image_text(reply[0])
+              
+        # Clean the answer
+        answer = await clean_reply(reply[0], str(reply[1].author.name))
         
-        answer = await clean_reply(data[1], str(reply[1].author.name))
+        # Let user know we're about to post / have posted
         await reply[1].remove_reaction('🟩', client.user)
         await reply[1].add_reaction('✅')
-        
-        print("Replying to " + reply[1].author.name + " with " + answer)
         await reply[1].channel.send(answer, reference=reply[1])   
+
         queue_to_send.task_done()
 
 async def add_to_message_history(author, message, file):
