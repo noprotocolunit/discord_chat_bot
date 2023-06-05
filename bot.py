@@ -59,11 +59,6 @@ parameters = {
     "m_eta": 0.2 # mirostat learning rate
 }
 
-stable_diffusion = {
-    "api_address": "http://192.168.1.50:7861/"
-}
-   
-
 # Time when the status was last updated
 status_last_update = datetime.datetime.now()
 
@@ -279,15 +274,13 @@ async def process_queue():
 async def send_queue():
     while True:
         reply = await queue_to_send.get()
-        data = separate_image_text(reply[0])
-        
+        data = functions.separate_image_text(reply[0])
         
         answer = await clean_reply(data[1], str(reply[1].author.name))
         await reply[1].remove_reaction('🟩', client.user)
         await reply[1].add_reaction('✅')
         
-        
-        print("Replying to " + reply[1].author.name + ".")
+        print("Replying to " + reply[1].author.name + " with " + answer)
         await reply[1].channel.send(answer, reference=reply[1])   
         queue_to_send.task_done()
 
@@ -350,7 +343,6 @@ async def on_ready():
     client.tree.add_command(personality)
     client.tree.add_command(history)
     client.tree.add_command(character)
-    client.tree.add_command(server-info)
     await client.tree.sync()
     
     data = await functions.check_bot_temps()
@@ -521,13 +513,5 @@ async def character_select_callback(interaction):
     
     # Let the user know that their request has been completed
     await interaction.followup.send(interaction.user.name + " updated the bot's personality to " + character_card["persona"] + ".")
-    
-@client.command(name="server-info", description="View a list of servers the bot is in.")
-@commands.is_owner()
-async def server_information(interaction):
-    guild_list = ''  # Initialize your string first
-    for guild in client.guilds:
-        guild_list += guild.name + '\n'
-    await interaction.response.send_message(guild_list, ephemeral=True)
      
 client.run(discord_api_key)

@@ -51,7 +51,6 @@ async def check_bot_temps():
     process = await asyncio.create_subprocess_exec("powershell.exe", "S:\AI\extra_scripts\strippedinfo.ps1", stdout=asyncio.subprocess.PIPE)
     output, _ = await process.communicate()
     return output.decode()
-
 # A function for separating images from text that returns both.    
 def separate_image_text(message)
     
