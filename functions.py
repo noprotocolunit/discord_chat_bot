@@ -6,6 +6,7 @@ import re
 import base64
 from PIL import Image
 import io
+from datetime
 
    
 # Get the full path of a file and hand it over
@@ -27,15 +28,15 @@ def get_json_file(filename):
              return contents
     # Be very sad if the file isn't there to read
     except FileNotFoundError:
-        print(f"File {filename} not found. Where did you lose it?")
+        await write_to_log("File " + filename + "not found. Where did you lose it?")
         return None
     # Be also sad if the file isn't a JSON or is malformed somehow
     except json.JSONDecodeError:
-        print(f"Unable to parse {filename} as JSON.")
+        await write_to_log("Unable to parse " + filename + " as JSON.")
         return None
     # Be super sad if we have no idea what's going on here
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        await write_to_log("An unexpected error occurred: " + e)
         return None
 
 # Read in however many lines of a text file (for context or other text)
@@ -54,11 +55,11 @@ def get_txt_file(filename, lines):
             return history_string
     # Let someone know if the file isn't where we expected to find it.
     except FileNotFoundError:
-        print(f"File {filename} not found. Where did you lose it?")
+        await write_to_log("File " + filename + " not found. Where did you lose it?")
         return None
     # Panic if we have no idea what's going in here
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        await write_to_log("An unexpected error occurred: " + e)
         return None
 
 # Get the contents of a character file (which should contain everything about the character)
@@ -66,7 +67,11 @@ def get_character_card(name):
 
     # Get the file name and then its contents
     file = get_file_name("characters", name)
-    character = get_json_file(file)
+    contents = get_json_file(file)
+    
+    if contents != None
+        character.clear()
+        character.update(contents)
    
     #return the contents of the JSON file
     return character
@@ -85,17 +90,6 @@ def get_character_card_list(directory):
 
     # Return either the list of files or a blank list.
     return files
-
-# Clean the input provided by the user to the bot!
-def clean_user_message(user_input):
-
-    # Remove the bot's tag from the input since it's not needed.
-    user_input = user_input.replace("<@1080950961268342874>","")
-    
-    # Remove any spaces before and after the text.
-    user_input = user_input.strip()
-    
-    return user_input
 
 # A function for checking bot's temperature (lterally, card temps)
 async def check_bot_temps():
@@ -130,13 +124,77 @@ def set_api(config_file):
     # Return the API
     return api
 
+# Check to see if the API is running (pick any API)
 def api_status_check(link, headers):
 
     try:
         response = requests.get(api_link, headers=headers)
         status = response.ok
     except requests.exceptions.RequestException as e:
-        print(f'Error occurred: {e}. Language model not currently running.')
+        await write_to_log("Error occurred: " +e +". Language model not currently running.")
         status = False
 
     return status
+
+# Write a line to the log file    
+async def write_to_log(information):
+    file = get_file_name("", "log.txt")
+    
+    # Add a time stamp to the provided error message
+    current_time = datetime.datetime.now()
+    rounded_time = current_time.replace(microsecond=0)
+    text = str(rounded_time) + " " + information
+    
+    await append_text_file(file, text)
+
+# Append text to the end of a text file
+async def append_text_file(file, text):
+
+    with open(file, 'a+', encoding="utf-8") as context:
+        context.write(text)
+        context.close()
+        
+async def prune_conversation_history(file_name, max_lines, trim_to):
+    file = get_file_name("context", file_name)
+    
+    try:
+        with open(file, "r", encoding="utf-8") as f:  # Open the file in read mode
+            contents = f.readlines()
+            
+        if len(contents) > max_lines:
+            contents = contents[-trim_to:]  # Keep the last 'trim_to' lines
+
+        with open(file, "w", encoding="utf-8") as f:  # Open the file in write mode
+            f.writelines(contents)  # Write the pruned lines to the file
+    except FileNotFoundError:
+        await write_to_log("Could not prune file " + file + " because it doesn't exist.")
+
+def get_conversation_history(user):
+    file = get_file_name("context", user+".txt")
+    history = get_txt_file(file, 10)
+    
+    if history == None
+        history = ""
+    
+    return history
+
+async def add_to_conversation_history(message, user, file):
+
+    file_name = functions.get_file_name("context", file + ".txt")
+    content = user + ": " + message + "\n"
+    await append_text_file(file_name, content)     
+
+# Clean the input provided by the user to the bot!
+def clean_user_message(user_input):
+
+    # Remove the bot's tag from the input since it's not needed.
+    user_input = user_input.replace("<@1080950961268342874>","")
+    
+    # Remove any spaces before and after the text.
+    user_input = user_input.strip()
+    
+    return user_input
+
+def get_character(character_card)
+
+    return character
