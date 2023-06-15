@@ -97,14 +97,38 @@ async def create_text_prompt(user_input, author, character, name, history, reply
     stopping_strings =  ['\n' + author + ":", "\n" + name + ":", '\nYou:' ]
     
     data = text_api["parameters"]
-    data.update({"prompt": prompt, "stopping_strings": stopping_strings})
+    data.update({"prompt": prompt})
+    
+    if text_api["name"] == "openai":
+        data.update({"stop": stopping_strings})
+    else
+        data.update({"stopping_strings": stopping_strings})
 
     data_string = json.dumps(data)
     return data_string
     
-async def create_image_prompt(user_input, author, text_api):
+async def create_image_prompt(user_input, author, name, text_api):
 
-    return prompt
+    user_input = user_input.lower()
+    
+    if "of" in user_input:
+        subject = user_input.split('of', 1)[1]
+        prompt = "Please provide a detailed and vivid description of " + subject
+    else
+        prompt = "Please provide a vivid and detailed description of your appearance."
+        
+    stopping_strings =  ['\n' + author + ":", "\n" + name + ":", '\nYou:' ]
+    
+    data = text_api["parameters"]
+    data.update({"prompt": prompt})
+    
+    if text_api["name"] == "openai":
+        data.update({"stop": stopping_strings})
+    else
+        data.update({"stopping_strings": stopping_strings})
+
+    data_string = json.dumps(data)
+    return data_string
 
 # Get user's conversation history
 async def get_conversation_history(user, lines):
@@ -247,7 +271,7 @@ def get_character_card_list(directory):
 def image_from_string(image_string):
 
     img = base64.b64decode(image_string)
-    name = "image" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
+    name = "image_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
     
     with open(name, 'wb') as f:
         f.write(img)

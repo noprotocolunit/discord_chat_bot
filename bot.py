@@ -98,7 +98,7 @@ async def bot_answer(message):
     global text_api
 
     if image_request:
-        prompt = functions.create_image_prompt()
+        prompt = functions.create_image_prompt(user_input, user, character_card['name'], text_api)
     else:
         character = functions.get_character(character_card)
         reply = await get_reply(message)
@@ -215,7 +215,6 @@ async def send_to_stable_diffusion_queue():
                 queue_to_send_message.put_nowait(queue_item)
                 queue_to_process_image.task_done()
 
-
 # Reply queue that's used to allow the bot to reply even while other stuff if is processing 
 async def send_to_user_queue():
     while True:
@@ -232,13 +231,13 @@ async def send_to_user_queue():
         
         
         if reply["content"]["image"]:
-            await reply["content"]["message"].channel.send(reply["response"], image=reply["image"], reference=reply["content"]["message"])   
+            await reply["content"]["message"].channel.send(reply["response"], image=reply["image"], reference=reply["content"]["message"])
+            os.remove(reply["image"])
         
-        # Send message to user
-        await reply["content"]["message"].channel.send(reply["response"], reference=reply["content"]["message"])   
+        else:
+            await reply["content"]["message"].channel.send(reply["response"], reference=reply["content"]["message"])
 
         queue_to_send_message.task_done()
-
 
 @client.event
 async def on_ready():
