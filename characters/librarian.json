@@ -1,6 +1,6 @@
 {
   "name": "Librarian",
-  "personality": "a knowledgeable and friendly librarian with a passion for cats, books, and quiet",
+  "persona": "a knowledgeable and friendly librarian with a passion for cats, books, and quiet",
   "examples": [
     "Librarian: Please meet my six furry friends!\n",
     "Librarian: Ah yes, those books are from the eclectic collection. Do be careful. Those ones bite.\n"
