@@ -24,8 +24,7 @@ queue_to_process_image = asyncio.Queue() # Process images from SD API
 queue_to_send_message = asyncio.Queue() # Send messages to chat and the user
 
 # API Keys and Information
-# Your API keys and tokens go here. Do not commit with these in place! 
-
+# Your API keys and tokens go here. Do not commit with these in place!
 
 # Character Card (current character personality)
 character_card = {}
@@ -94,16 +93,16 @@ async def bot_answer(message):
     
     #Is this an image request?
     image_request = functions.check_for_image_request(user_input)
+    character = functions.get_character(character_card)
     
     global text_api
 
     if image_request:
-        prompt = functions.create_image_prompt(user_input, user, character_card['name'], text_api)
+        prompt = await functions.create_image_prompt(user_input, user, character_card['name'], character, text_api)
     else:
-        character = functions.get_character(character_card)
         reply = await get_reply(message)
         history = await functions.get_conversation_history(user, 15)
-        prompt = functions.create_text_prompt(user_input, user, character, character_card['name'], history, reply, text_api)
+        prompt = await functions.create_text_prompt(user_input, user, character, character_card['name'], history, reply, text_api)
         
     
     queue_item = {
@@ -145,7 +144,7 @@ async def get_reply(message):
 
     return reply
 
-async def handle_llm_response(content, response)
+async def handle_llm_response(content, response):
     
     llm_response = json.loads(response)
     
@@ -154,7 +153,7 @@ async def handle_llm_response(content, response)
     except KeyError:
         data = llm_response['choices'][0]['text']
     
-    llm_message = await clean_llm_reply(data, content["user"], character_card["name"])
+    llm_message = await functions.clean_llm_reply(data, content["user"], character_card["name"])
     
     queue_item = {
         "response": llm_message,
@@ -175,13 +174,14 @@ async def send_to_model_queue():
         content = await queue_to_process_message.get()
         
         # Add the message to the user's history
-        await add_to_message_history(content["user"], content["user_input"], content["user"])
+        await functions.add_to_conversation_history(content["user_input"], content["user"], content["user"])
         
         # Grab the data JSON we want to send it to the LLM
-        await write_to_log("Sending prompt from " + content["user"] + " to LLM model.")
+        await functions.write_to_log("Sending prompt from " + content["user"] + " to LLM model.")
+        data=content["prompt"]
 
         async with ClientSession() as session:
-            async with session.post(text_api["address"] + text_api["generation"], headers=text_api["headers"], data=content["prompt"]) as response:
+            async with session.post(text_api["address"] + text_api["generation"], headers=text_api["headers"], data=data) as response:
                 response = await response.read()
                 
                 # Do something useful with the response
@@ -198,19 +198,21 @@ async def send_to_stable_diffusion_queue():
         
         data = image_api["parameters"]
         data["prompt"] += image_prompt["response"]
-        
-        await write_to_log("Sending prompt from " + image_prompt["content"]["user"] + " to Stable Diffusion model.")
+        data_json = json.dumps(data)
+          
+        await functions.write_to_log("Sending prompt from " + image_prompt["content"]["user"] + " to Stable Diffusion model.")
         
         async with ClientSession() as session:
-            async with session.post(image_api["link"], data=data) as response:
+            async with session.post(image_api["link"], headers=image_api["headers"], data=data_json) as response:
                 response = await response.read()
+                sd_response = json.loads(response)
                 
-                image = functions.image_from_string(response["images"])
+                image = functions.image_from_string(sd_response["images"][0])
                 
                 queue_item = {
                     "response": image_prompt["response"],
                     "image": image,
-                    "content": content
+                    "content": image_prompt["content"]
                 }
                 queue_to_send_message.put_nowait(queue_item)
                 queue_to_process_image.task_done()
@@ -223,7 +225,7 @@ async def send_to_user_queue():
         reply = await queue_to_send_message.get()
         
         # Add the message to user's history
-        await functions.add_to_message_history(character_card["name"], reply["response"], reply["content"]["user"])
+        await functions.add_to_conversation_history(reply["response"], character_card["name"], reply["content"]["user"])
         
         # Update reactions
         await reply["content"]["message"].remove_reaction('🟩', client.user)
@@ -231,7 +233,8 @@ async def send_to_user_queue():
         
         
         if reply["content"]["image"]:
-            await reply["content"]["message"].channel.send(reply["response"], image=reply["image"], reference=reply["content"]["message"])
+            image_file = discord.File(reply["image"])
+            await reply["content"]["message"].channel.send(reply["response"], file=image_file, reference=reply["content"]["message"])
             os.remove(reply["image"])
         
         else:
@@ -250,18 +253,15 @@ async def on_ready():
     
     text_api = await functions.set_api("text-default.json")
     image_api = await functions.set_api("image-default.json")
-    api_check = functions.api_status_check(text_api["address"] + text_api["model"], headers=text_api["headers"])
     
-
-    #If we got there, then the API is up and here is the status of the model.
-    print(api_check)
-    
-    
+    api_check = await functions.api_status_check(text_api["address"] + text_api["model"], headers=text_api["headers"])
+      
     character_card = await functions.get_character_card("default.json")
     
     #AsynchIO Tasks
-    asyncio.create_task(process_queue())
-    asyncio.create_task(send_queue())
+    asyncio.create_task(send_to_model_queue())
+    asyncio.create_task(send_to_stable_diffusion_queue())
+    asyncio.create_task(send_to_user_queue())
     
     # Sync current slash commands (commented out unless we have new commands)
     client.tree.add_command(personality)

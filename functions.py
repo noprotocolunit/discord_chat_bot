@@ -30,13 +30,13 @@ async def set_api(config_file):
     return api
 
 # Check to see if the API is running (pick any API)
-def api_status_check(link, headers):
+async def api_status_check(link, headers):
 
     try:
-        response = requests.get(api_link, headers=headers)
+        response = requests.get(link, headers=headers)
         status = response.ok
     except requests.exceptions.RequestException as e:
-        await write_to_log("Error occurred: " +e +". Language model not currently running.")
+        await write_to_log("Error occurred: " + e +". Language model not currently running.")
         status = False
 
     return status
@@ -85,7 +85,7 @@ def check_for_image_request(user_message):
     user_message = user_message.lower()
     
     # Create a pattern we'll be matching against
-    pattern = re.compile('(send|create|give|generate|draw|snap|take|message).*?(image|picture|photo|drawing|screenshot)')
+    pattern = re.compile('(send|create|give|generate|draw|snap|show|take|message).*?(image|picture|photo|drawing|screenshot)')
     
     # Do some matching, I suppose
     result = bool(pattern.search(user_message))
@@ -94,37 +94,37 @@ def check_for_image_request(user_message):
 async def create_text_prompt(user_input, author, character, name, history, reply, text_api):
 
     prompt = character + history + reply + author + ": " + user_input + "\n" + name + ":"
-    stopping_strings =  ['\n' + author + ":", "\n" + name + ":", '\nYou:' ]
+    stopping_strings = ['\n' + author + ":", "\n" + name + ":", '\nYou:' ]
     
     data = text_api["parameters"]
     data.update({"prompt": prompt})
     
     if text_api["name"] == "openai":
         data.update({"stop": stopping_strings})
-    else
+    else:
         data.update({"stopping_strings": stopping_strings})
 
     data_string = json.dumps(data)
     return data_string
     
-async def create_image_prompt(user_input, author, name, text_api):
+async def create_image_prompt(user_input, author, name, character, text_api):
 
     user_input = user_input.lower()
     
     if "of" in user_input:
         subject = user_input.split('of', 1)[1]
-        prompt = "Please provide a detailed and vivid description of " + subject
-    else
-        prompt = "Please provide a vivid and detailed description of your appearance."
+        prompt = character + "\n" + author + ": Using 20 words or less, please provide a vivid description of" + subject + "\n" + name + ": "
+    else:
+        prompt = character + "\n" + author + ": Please provide a vivid and detailed description of your appearance.\n" + name + ": "
         
-    stopping_strings =  ['\n' + author + ":", "\n" + name + ":", '\nYou:' ]
+    stopping_strings = ['\n' + author + ":", "\n" + name + ":", '\nYou:', "#" ]
     
     data = text_api["parameters"]
     data.update({"prompt": prompt})
     
     if text_api["name"] == "openai":
         data.update({"stop": stopping_strings})
-    else
+    else:
         data.update({"stopping_strings": stopping_strings})
 
     data_string = json.dumps(data)
@@ -136,7 +136,7 @@ async def get_conversation_history(user, lines):
     file = get_file_name("context", user+".txt")
     
     # Get as many lines from the file as needed
-    contents, length = get_txt_file(file, lines)
+    contents, length = await get_txt_file(file, lines)
     
     if contents is None:
         contents = ""
@@ -148,13 +148,15 @@ async def get_conversation_history(user, lines):
 
 async def add_to_conversation_history(message, user, file):
 
-    file_name = functions.get_file_name("context", file + ".txt")
+    file_name = get_file_name("context", file + ".txt")
+    
     content = user + ": " + message + "\n"
+    
     await append_text_file(file_name, content)
 
 # Read in however many lines of a text file (for context or other text)
 # Returns a string with the contents of the file
-def get_txt_file(filename, lines):
+async def get_txt_file(filename, lines):
 
     # Attempt to read the file and put its contents into a variable
     try:
@@ -203,7 +205,7 @@ async def append_text_file(file, text):
 def clean_user_message(user_input):
 
     # Remove the bot's tag from the input since it's not needed.
-    user_input = user_input.replace("<@1080950961268342874>","")
+    user_input = user_input.replace("@NightBot","")
     
     # Remove any spaces before and after the text.
     user_input = user_input.strip()
@@ -211,17 +213,19 @@ def clean_user_message(user_input):
     return user_input
  
 async def clean_llm_reply(message, user, bot):
-    
+  
     # Clean the text and prepare it for posting
-    dirty_message = dirty_message.strip()
+    dirty_message = message.strip()
     clean_message = dirty_message.replace(user + ":","")
     clean_message = clean_message.replace("\n\n" + bot + ":", "")
+    
+    parts = clean_message.split("#", 1)
 
     # Return nice and clean message
-    return clean_message
+    return parts[0]
     
 # Get the current bot character in a prompt-friendly format
-def get_character(character_card)
+def get_character(character_card):
 
     # Your name is <name>.
     character = "Your name is " + character_card["name"] + ". "
@@ -230,12 +234,10 @@ def get_character(character_card)
     character = character + "You are a " + character_card["persona"] + ". \n"
     
     # Instructions on what the bot should do. This is where an instruction model will get its stuff.
-    character = character + "Here are your instructions. " +  character_card["instructions"] + "\n."
+    character = character + "Here are your instructions. " +  character_card["instructions"]
     
     # Example messages!
-    character = character + "Example messages." + \n" + ' '.join(character_card['examples'])
-    
-    print(character)
+    character = character + "Example messages: " + "\n" + '\n'.join(character_card['examples']) +"\n"
 
     return character
     
