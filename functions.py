@@ -91,10 +91,10 @@ def check_for_image_request(user_message):
     result = bool(pattern.search(user_message))
     return result
 
-async def create_text_prompt(user_input, author, character, name, history, reply, text_api):
+async def create_text_prompt(user_input, user, character, bot, history, reply, text_api):
 
-    prompt = character + history + reply + author + ": " + user_input + "\n" + name + ":"
-    stopping_strings = ['\n' + author + ":", "\n" + name + ":", '\nYou:' ]
+    prompt = character + history + reply + user + ": " + user_input + "\n" + bot + ": "
+    stopping_strings = ["\n" + user + ":", user + ":", bot + ":", "You:", "#"]
     
     data = text_api["parameters"]
     data.update({"prompt": prompt})
@@ -107,17 +107,17 @@ async def create_text_prompt(user_input, author, character, name, history, reply
     data_string = json.dumps(data)
     return data_string
     
-async def create_image_prompt(user_input, author, name, character, text_api):
+async def create_image_prompt(user_input, character, text_api):
 
     user_input = user_input.lower()
     
     if "of" in user_input:
         subject = user_input.split('of', 1)[1]
-        prompt = character + "\n" + author + ": Using 20 words or less, please provide a vivid description of" + subject + "\n" + name + ": "
+        prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\nPlease describe the following in vivid detail:" + subject + "\n\n### Response:\n"
     else:
-        prompt = character + "\n" + author + ": Please provide a vivid and detailed description of your appearance.\n" + name + ": "
+        prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n" + character + "Please describe yourself in vivid detail.\n\n### Response:\n"
         
-    stopping_strings = ['\n' + author + ":", "\n" + name + ":", '\nYou:', "#" ]
+    stopping_strings = ["### Instruction:", "### Response:", "You:", "#", "</s>" ]
     
     data = text_api["parameters"]
     data.update({"prompt": prompt})
@@ -213,11 +213,11 @@ def clean_user_message(user_input):
     return user_input
  
 async def clean_llm_reply(message, user, bot):
-  
+
     # Clean the text and prepare it for posting
-    dirty_message = message.strip()
+    dirty_message = message.replace(bot + ":","")
     clean_message = dirty_message.replace(user + ":","")
-    clean_message = clean_message.replace("\n\n" + bot + ":", "")
+    clean_message = clean_message.strip()
     
     parts = clean_message.split("#", 1)
 
@@ -231,13 +231,13 @@ def get_character(character_card):
     character = "Your name is " + character_card["name"] + ". "
     
     # Your name is <name>. You are a <persona>.
-    character = character + "You are a " + character_card["persona"] + ". \n"
+    character = character + "You are " + character_card["persona"] + ". "
     
     # Instructions on what the bot should do. This is where an instruction model will get its stuff.
-    character = character + "Here are your instructions. " +  character_card["instructions"]
+    character = character + character_card["instructions"]
     
     # Example messages!
-    character = character + "Example messages: " + "\n" + '\n'.join(character_card['examples']) +"\n"
+    character = character + "Here is how you speak: " + "\n" + '\n'.join(character_card['examples']) +"\n"
 
     return character
     
@@ -256,7 +256,7 @@ async def get_character_card(name):
     return character
     
 # Get the list of all available characters (files in the character directory, hopefully)
-def get_character_card_list(directory):
+def get_file_list(directory):
 
     # Try to get the list of character files from the directory provided. 
     try:

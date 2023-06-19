@@ -26,6 +26,7 @@ queue_to_send_message = asyncio.Queue() # Send messages to chat and the user
 # API Keys and Information
 # Your API keys and tokens go here. Do not commit with these in place!
 
+
 # Character Card (current character personality)
 character_card = {}
 
@@ -87,6 +88,7 @@ async def bot_answer(message):
     await message.add_reaction('🟩')
     
     user = message.author.display_name
+    user= user.replace(" ", "")
     
     # Clean the user's message to make it easy to read
     user_input = functions.clean_user_message(message.clean_content)
@@ -98,7 +100,7 @@ async def bot_answer(message):
     global text_api
 
     if image_request:
-        prompt = await functions.create_image_prompt(user_input, user, character_card['name'], character, text_api)
+        prompt = await functions.create_image_prompt(user_input, character, text_api)
     else:
         reply = await get_reply(message)
         history = await functions.get_conversation_history(user, 15)
@@ -133,13 +135,14 @@ async def get_reply(message):
             if referenced_user_message.author != message.author:
                 reply = referenced_user_message.author.display_name + ": " + referenced_user_message.clean_content + "\n"
                 reply = reply + referenced_message.author.display_name + ": " + referenced_message.clean_content + "\n"
-                print(reply)
+                reply = functions.clean_user_message(reply)
+
                 return reply
         
         #If the referenced message isn't from the bot, use it in the reply
         if referenced_message.author != client.user: 
             reply = referenced_message.author.display_name + ": " + referenced_message.clean_content + "\n"
-            print(reply)
+
             return reply
 
     return reply
@@ -178,10 +181,9 @@ async def send_to_model_queue():
         
         # Grab the data JSON we want to send it to the LLM
         await functions.write_to_log("Sending prompt from " + content["user"] + " to LLM model.")
-        data=content["prompt"]
 
         async with ClientSession() as session:
-            async with session.post(text_api["address"] + text_api["generation"], headers=text_api["headers"], data=data) as response:
+            async with session.post(text_api["address"] + text_api["generation"], headers=text_api["headers"], data=content["prompt"]) as response:
                 response = await response.read()
                 
                 # Do something useful with the response
@@ -307,7 +309,7 @@ async def reset_personality(interaction):
             
     # Update the global variable
     old_personality = character_card["persona"]
-    character_card["persona"]= "coffee-loving, sarcastic friend with a dry sense of humor"
+    character_card = await functions.get_character_card("default.json")
         
     # Display new personality, so we know where we're at
     await interaction.response.send_message("Bot's personality has been updated from \"" + old_personality + "\" to \"" + character_card["persona"] + "\".")
@@ -319,8 +321,8 @@ history = app_commands.Group(name="conversation-history", description="View or c
 async def reset_history(interaction):
     
     # Get the user who started the interaction and find their file.
-    author = str(interaction.user.name)
-    file_name = functions.get_filename("context", author, "txt")
+    author = str(interaction.user.display_name)
+    file_name = functions.get_file_name("context", author + ".txt")
 
     # Attempt to remove the file and let the user know what happened.
     try:
@@ -338,7 +340,7 @@ async def reset_history(interaction):
 async def view_history(interaction):
     # Get the user who started the interaction and find their file.
     author = str(interaction.user.name)
-    file_name = functions.get_filename("context", author, "txt")
+    file_name = functions.get_file_name("context", author + ".txt")
     
     try:
         with open(file_name, "r", encoding="utf-8") as file:  # Open the file in read mode
@@ -360,7 +362,7 @@ character = app_commands.Group(name="character-cards", description="View or chan
 async def change_character(interaction):
     
     # Get a list of available character cards
-    character_cards = functions.get_character_card_list("characters")
+    character_cards = functions.get_file_list("characters")
     options = []
     
     # Verify the list is not currently empty
@@ -407,4 +409,62 @@ async def character_select_callback(interaction):
     # Let the user know that their request has been completed
     await interaction.followup.send(interaction.user.name + " updated the bot's personality to " + character_card["persona"] + ".")
      
+
+# Slash commands for character card presets (if not interested in manually updating) 
+parameters = app_commands.Group(name="model-parameters", description="View or changs the bot's current LLM generation parameters.")
+
+# Command to view a list of available characters.
+@parameters.command(name="change", description="View a list of available generation parameters.")
+async def change_character(interaction):
+    
+    # Get a list of available character cards
+    presets = functions.get_file_list("configurations")
+    options = []
+    
+    # Verify the list is not currently empty
+    if not presets:
+        await interaction.response.send_message("No character cards are currently available.")
+        return
+        
+    # Create the selector list with all the available options.
+    for preset in presets:
+        if preset.startswith("text"):
+            options.append(discord.SelectOption(label=card, value=card))
+
+    select = discord.ui.Select(placeholder="Select a character card.", options=options)
+    select.callback = character_select_callback
+    view = discord.ui.View()
+    view.add_item(select)
+
+    # Show the dropdown menu to the user
+    await interaction.response.send_message('Select a character card', view=view, ephemeral=True)
+
+async def character_select_callback(interaction):
+    
+    await interaction.response.defer()
+    
+    # Get the value selected by the user via the dropdown.
+    selection = interaction.data.get("values", [])[0]
+    
+    # Get the JSON file associated with that selection
+    character = functions.get_character_card(selection)
+    
+    # Adjust the character card for the bot to match what the user selected.
+    global character_card
+    
+    character_card = character
+    
+    # Change bot's nickname without changing its name
+    guild = interaction.guild
+    me = guild.me
+    await me.edit(nick=character_card["name"])
+    
+    response = requests.get(character_card["image"])
+    data = response.content
+    await client.user.edit(avatar=data)
+    
+    # Let the user know that their request has been completed
+    await interaction.followup.send(interaction.user.name + " updated the bot's personality to " + character_card["persona"] + ".")
+
+
 client.run(discord_api_key)

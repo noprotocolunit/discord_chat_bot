@@ -31,12 +31,12 @@
 		"mirostat_mode": 0,
 		"mirostat_tau": 5,
 		"mirostat_eta": 0.2,
-		"repetition_penalty": 1.18,
+		"repetition_penalty": 1.1,
 		"temperature": 0.7,
-		"tfs": 0.8,
+		"tfs": 1.0,
 		"top_a": 0.0,
 		"top_k": 0,
-		"top_p": 1.0,
-		"typical_p": 1.0
+		"top_p": 0.5,
+		"typical_p": 0.19
     }
 }
