@@ -26,7 +26,6 @@ queue_to_send_message = asyncio.Queue() # Send messages to chat and the user
 # API Keys and Information
 # Your API keys and tokens go here. Do not commit with these in place!
 
-
 # Character Card (current character personality)
 character_card = {}
 
@@ -269,6 +268,7 @@ async def on_ready():
     client.tree.add_command(personality)
     client.tree.add_command(history)
     client.tree.add_command(character)
+    client.tree.add_command(parameters)
     await client.tree.sync()
         
     # Check bot temps and update bot status accordingly
@@ -319,10 +319,10 @@ history = app_commands.Group(name="conversation-history", description="View or c
 
 @history.command(name="reset", description="Reset your conversation history with the bot.")
 async def reset_history(interaction):
-    
-    # Get the user who started the interaction and find their file.
-    author = str(interaction.user.display_name)
-    file_name = functions.get_file_name("context", author + ".txt")
+    user = str(interaction.user.display_name)
+    user= user.replace(" ", "")
+
+    file_name = functions.get_file_name("context", user + ".txt")
 
     # Attempt to remove the file and let the user know what happened.
     try:
@@ -339,8 +339,11 @@ async def reset_history(interaction):
 @history.command(name="view", description=" View the last 20 lines of your conversation history.")
 async def view_history(interaction):
     # Get the user who started the interaction and find their file.
-    author = str(interaction.user.name)
-    file_name = functions.get_file_name("context", author + ".txt")
+
+    user = str(interaction.user.display_name)
+    user= user.replace(" ", "")
+
+    file_name = functions.get_file_name("context", user + ".txt")
     
     try:
         with open(file_name, "r", encoding="utf-8") as file:  # Open the file in read mode
@@ -388,24 +391,17 @@ async def character_select_callback(interaction):
     
     # Get the value selected by the user via the dropdown.
     selection = interaction.data.get("values", [])[0]
-    
-    # Get the JSON file associated with that selection
-    character = functions.get_character_card(selection)
-    
+        
     # Adjust the character card for the bot to match what the user selected.
     global character_card
     
-    character_card = character
+    character_card = await functions.get_character_card(selection)
     
     # Change bot's nickname without changing its name
     guild = interaction.guild
     me = guild.me
     await me.edit(nick=character_card["name"])
-    
-    response = requests.get(character_card["image"])
-    data = response.content
-    await client.user.edit(avatar=data)
-    
+        
     # Let the user know that their request has been completed
     await interaction.followup.send(interaction.user.name + " updated the bot's personality to " + character_card["persona"] + ".")
      
@@ -415,7 +411,7 @@ parameters = app_commands.Group(name="model-parameters", description="View or ch
 
 # Command to view a list of available characters.
 @parameters.command(name="change", description="View a list of available generation parameters.")
-async def change_character(interaction):
+async def change_parameters(interaction):
     
     # Get a list of available character cards
     presets = functions.get_file_list("configurations")
@@ -423,7 +419,7 @@ async def change_character(interaction):
     
     # Verify the list is not currently empty
     if not presets:
-        await interaction.response.send_message("No character cards are currently available.")
+        await interaction.response.send_message("No configurations are currently available. Please contact the bot owner.")
         return
         
     # Create the selector list with all the available options.
@@ -432,39 +428,27 @@ async def change_character(interaction):
             options.append(discord.SelectOption(label=card, value=card))
 
     select = discord.ui.Select(placeholder="Select a character card.", options=options)
-    select.callback = character_select_callback
+    select.callback = parameter_select_callback
     view = discord.ui.View()
     view.add_item(select)
 
     # Show the dropdown menu to the user
     await interaction.response.send_message('Select a character card', view=view, ephemeral=True)
 
-async def character_select_callback(interaction):
+async def parameter_select_callback(interaction):
     
     await interaction.response.defer()
     
     # Get the value selected by the user via the dropdown.
     selection = interaction.data.get("values", [])[0]
     
-    # Get the JSON file associated with that selection
-    character = functions.get_character_card(selection)
-    
     # Adjust the character card for the bot to match what the user selected.
-    global character_card
-    
-    character_card = character
-    
-    # Change bot's nickname without changing its name
-    guild = interaction.guild
-    me = guild.me
-    await me.edit(nick=character_card["name"])
-    
-    response = requests.get(character_card["image"])
-    data = response.content
-    await client.user.edit(avatar=data)
+    global text_api
+    text_api = await functions.set_api(selection)
+    api_check = await functions.api_status_check(text_api["address"] + text_api["model"], headers=text_api["headers"])
     
     # Let the user know that their request has been completed
-    await interaction.followup.send(interaction.user.name + " updated the bot's personality to " + character_card["persona"] + ".")
+    await interaction.followup.send(interaction.user.name + " updated the bot's sampler parameters. " + api_check)
 
 
 client.run(discord_api_key)
