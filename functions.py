@@ -92,9 +92,17 @@ def check_for_image_request(user_message):
     return result
 
 async def create_text_prompt(user_input, user, character, bot, history, reply, text_api):
-
-    prompt = character + history + reply + user + ": " + user_input + "\n" + bot + ": "
-    stopping_strings = ["\n" + user + ":", user + ":", bot + ":", "You:", "#"]
+    
+    # Generate the prompt
+    prompt = character + "\n\nConversation between " + user + " and " + bot + " begins here.\n"
+    prompt = prompt + history + reply + user + ": " + user_input + "\n" + bot + ": "
+    
+    # Create the stopping strings
+    user_string = '\n' + user + ':'
+    bot_string = '\n' + bot + ':'
+    
+    # Populate the stopping_strings with those options, plus a few more
+    stopping_strings = [user_string, bot_string, '\nYou:']
     
     data = text_api["parameters"]
     data.update({"prompt": prompt})
@@ -117,7 +125,7 @@ async def create_image_prompt(user_input, character, text_api):
     else:
         prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n" + character + "Please describe yourself in vivid detail.\n\n### Response:\n"
         
-    stopping_strings = ["### Instruction:", "### Response:", "You:", "#", "</s>" ]
+    stopping_strings = ["### Instruction:", "### Response:", "You:"]
     
     data = text_api["parameters"]
     data.update({"prompt": prompt})
@@ -214,15 +222,19 @@ def clean_user_message(user_input):
  
 async def clean_llm_reply(message, user, bot):
 
-    # Clean the text and prepare it for posting
-    dirty_message = message.replace(bot + ":","")
-    clean_message = dirty_message.replace(user + ":","")
-    clean_message = clean_message.strip()
+    message = message.replace(user + ":","")
+    message = message.replace(bot + ":","")
+    message = message.replace('\n','\n\n')
+    clean_message = message.strip()
     
-    parts = clean_message.split("#", 1)
+    # Find the last occurrence of the period
+    last_period_index = clean_message.rfind('.')
+
+    # Truncate the string at the last period
+    clean_message = clean_message[:last_period_index + 1]
 
     # Return nice and clean message
-    return parts[0]
+    return clean_message
     
 # Get the current bot character in a prompt-friendly format
 def get_character(character_card):
