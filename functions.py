@@ -224,7 +224,7 @@ async def clean_llm_reply(message, user, bot):
 
     message = message.replace(user + ":","")
     message = message.replace(bot + ":","")
-    message = message.replace('\n','\n\n')
+    message = re.sub("(?<!\n)\n(?!\\n)", "\n\n", message)
     clean_message = message.strip()
     
     # Find the last occurrence of the period
