@@ -85,7 +85,7 @@ def check_for_image_request(user_message):
     user_message = user_message.lower()
     
     # Create a pattern we'll be matching against
-    pattern = re.compile('(send|create|give|generate|draw|snap|show|take|message).*?(image|picture|photo|drawing|screenshot)')
+    pattern = re.compile('\b(?:send|create|give|generate|draw|snap|show|take|message)\b.*?(?:image|picture|photo(?:graph)?|drawing|screenshot)s?\b')
     
     # Do some matching, I suppose
     result = bool(pattern.search(user_message))
