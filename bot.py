@@ -320,6 +320,7 @@ history = app_commands.Group(name="conversation-history", description="View or c
 
 @history.command(name="reset", description="Reset your conversation history with the bot.")
 async def reset_history(interaction):
+
     user = str(interaction.user.display_name)
     user= user.replace(" ", "")
 
@@ -328,6 +329,7 @@ async def reset_history(interaction):
     # Attempt to remove the file and let the user know what happened.
     try:
         os.remove(file_name)
+        await functions.write_to_log("Deleted " + user + "'s history.")
         await interaction.response.send_message("Your conversation history was deleted.")
     except FileNotFoundError:
          await interaction.response.send_message("There was no history to delete.")
@@ -426,15 +428,15 @@ async def change_parameters(interaction):
     # Create the selector list with all the available options.
     for preset in presets:
         if preset.startswith("text"):
-            options.append(discord.SelectOption(label=card, value=card))
+            options.append(discord.SelectOption(label=preset, value=preset))
 
-    select = discord.ui.Select(placeholder="Select a character card.", options=options)
+    select = discord.ui.Select(placeholder="Select a parameter file.", options=options)
     select.callback = parameter_select_callback
     view = discord.ui.View()
     view.add_item(select)
 
     # Show the dropdown menu to the user
-    await interaction.response.send_message('Select a character card', view=view, ephemeral=True)
+    await interaction.response.send_message('Select a parameter file.', view=view, ephemeral=True)
 
 async def parameter_select_callback(interaction):
     
